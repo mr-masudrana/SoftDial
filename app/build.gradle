@@ -1,0 +1,36 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.example.softdial'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.example.softdial"
+        minSdk 26
+        targetSdk 34
+        versionCode 6
+        versionName "6.0"
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = '17' }
+    packaging { jniLibs { useLegacyPackaging = true } }
+}
+
+// Firebase push is enabled only if app/google-services.json exists
+if (file('google-services.json').exists()) {
+    apply plugin: 'com.google.gms.google-services'
+}
+
+dependencies {
+    implementation platform('com.google.firebase:firebase-bom:33.1.2')
+    implementation 'com.google.firebase:firebase-messaging'
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'org.linphone:linphone-sdk-android:5.3.0'
+}

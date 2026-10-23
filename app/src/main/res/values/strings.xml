@@ -1,0 +1,4 @@
+<resources>
+    <!-- App name shown under the icon. Change it here. -->
+    <string name="app_name">Soft Dial</string>
+</resources>

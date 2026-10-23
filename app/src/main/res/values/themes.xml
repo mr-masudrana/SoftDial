@@ -1,0 +1,3 @@
+<resources>
+    <style name="Theme.SoftDial" parent="Theme.AppCompat.DayNight.DarkActionBar" />
+</resources>

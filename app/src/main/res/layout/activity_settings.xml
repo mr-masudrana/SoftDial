@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <Button
+            android:id="@+id/btnAccounts"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Manage SIP accounts" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Theme" />
+
+        <RadioGroup
+            android:id="@+id/rgTheme"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <RadioButton android:id="@+id/rbSystem" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="System" />
+            <RadioButton android:id="@+id/rbLight" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="Light" />
+            <RadioButton android:id="@+id/rbDark" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="Dark" />
+        </RadioGroup>
+
+        <CheckBox
+            android:id="@+id/cbAutoRecord"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Record all calls automatically" />
+
+        <!-- Call rules -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Call rules"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <CheckBox
+            android:id="@+id/cbDnd"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Do Not Disturb (reject incoming calls)" />
+
+        <CheckBox
+            android:id="@+id/cbDndContacts"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="…but allow calls from my contacts" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Call forwarding" />
+
+        <RadioGroup
+            android:id="@+id/rgFwd"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <RadioButton android:id="@+id/rbFwdOff" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="Off" />
+            <RadioButton android:id="@+id/rbFwdAlways" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="Always" />
+            <RadioButton android:id="@+id/rbFwdBusy" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="When busy (already in a call)" />
+            <RadioButton android:id="@+id/rbFwdNoAnswer" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="When not answered" />
+        </RadioGroup>
+
+        <EditText
+            android:id="@+id/etFwdNumber"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Forward to number"
+            android:inputType="phone" />
+
+        <EditText
+            android:id="@+id/etFwdDelay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Seconds before forwarding (not answered)"
+            android:inputType="number" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Forwarding and Do Not Disturb are done by this app, so they only work while it is running and registered. Forwarding is checked first."
+            android:textSize="12sp" />
+
+        <!-- Push -->
+        <CheckBox
+            android:id="@+id/cbPush"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Use push notifications (FCM)" />
+
+        <TextView
+            android:id="@+id/tvPush"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/btnCopyToken"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Copy FCM token" />
+
+        <!-- Backup -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Backup &amp; restore"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Saves settings, SIP accounts (with passwords) and contacts to a file. Use a passphrase to encrypt it."
+            android:textSize="12sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnExport"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Export" />
+
+            <Button
+                android:id="@+id/btnImport"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Import" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnSave"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Save" />
+
+        <Button
+            android:id="@+id/btnBattery"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Allow background running (battery)" />
+    </LinearLayout>
+</ScrollView>
