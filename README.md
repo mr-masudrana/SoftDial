@@ -58,3 +58,36 @@ commit signing keys or passwords to the repository.
   foreground-service behavior on the target Android versions.
 - Run a full device/SIP integration test before production release. This repository update
   has not been compiled or tested against a live SIP server in this environment.
+
+
+## GitHub Actions: signed release APK
+
+The workflow always creates a debug APK. It creates a **signed** release APK only when all four GitHub Actions repository secrets below are configured; otherwise it uploads an explicitly named unsigned release artifact.
+
+### 1. Create a release keystore (keep it private)
+
+On a trusted computer with Java installed, run:
+
+```bash
+keytool -genkeypair -v -keystore softdial-release.jks -alias softdial -keyalg RSA -keysize 2048 -validity 10000
+base64 -w 0 softdial-release.jks > softdial-release.jks.base64
+```
+
+Keep both the `.jks` and its passwords private and make an offline backup. **Never commit the keystore, its Base64 text, or passwords to Git.** On macOS use `base64 < softdial-release.jks | tr -d '\n' > softdial-release.jks.base64`; on Windows use a trusted Base64 encoder.
+
+### 2. Add repository secrets
+
+In GitHub: repository → **Settings → Secrets and variables → Actions → New repository secret**. Add these four secrets:
+
+- `ANDROID_KEYSTORE_BASE64`: the complete Base64 contents of `softdial-release.jks.base64`
+- `ANDROID_KEYSTORE_PASSWORD`: keystore password
+- `ANDROID_KEY_ALIAS`: `softdial` (or the alias you chose)
+- `ANDROID_KEY_PASSWORD`: key password
+
+Do not paste secrets into workflow YAML or chat. If you lose the signing key, future APKs generally cannot update installations signed with the old key. Keep the key and passwords backed up securely.
+
+### 3. Run the workflow
+
+Open **Actions → SoftDial Android CI → Run workflow**. With secrets configured, download `softdial-signed-release-apk` from the run's Artifacts section. Verify that the artifact is the signed release, not `softdial-debug-apk`. The workflow verifies the APK signature before upload.
+
+The keystore is generated and kept in the GitHub runner's temporary directory and is not uploaded as an artifact.

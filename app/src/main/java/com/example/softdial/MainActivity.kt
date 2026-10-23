@@ -33,6 +33,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvDtmf: TextView
     private lateinit var tvWaiting: TextView
     private lateinit var dialerGroup: View
+    private lateinit var bottomNav: View
     private lateinit var callGroup: View
     private lateinit var controls: View
     private lateinit var waitingGroup: View
@@ -101,6 +102,7 @@ class MainActivity : AppCompatActivity() {
         tvDtmf = findViewById(R.id.tvDtmf)
         tvWaiting = findViewById(R.id.tvWaiting)
         dialerGroup = findViewById(R.id.dialerGroup)
+        bottomNav = findViewById(R.id.bottomNav)
         callGroup = findViewById(R.id.callGroup)
         controls = findViewById(R.id.controls)
         waitingGroup = findViewById(R.id.waitingGroup)
@@ -148,6 +150,23 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<Button>(R.id.btnContacts).setOnClickListener {
             startActivity(Intent(this, ContactsActivity::class.java))
+        }
+
+        findViewById<View>(R.id.navDial).setOnClickListener {
+            showDialer()
+            setNavSelected(R.id.navDial)
+        }
+        findViewById<View>(R.id.navRecents).setOnClickListener {
+            setNavSelected(R.id.navRecents)
+            startActivity(Intent(this, HistoryActivity::class.java))
+        }
+        findViewById<View>(R.id.navContacts).setOnClickListener {
+            setNavSelected(R.id.navContacts)
+            startActivity(Intent(this, ContactsActivity::class.java))
+        }
+        findViewById<View>(R.id.navSettings).setOnClickListener {
+            setNavSelected(R.id.navSettings)
+            startActivity(Intent(this, SettingsActivity::class.java))
         }
 
         btnAnswer.setOnClickListener { answerSafely() }
@@ -201,6 +220,13 @@ class MainActivity : AppCompatActivity() {
         render()
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (::bottomNav.isInitialized && bottomNav.visibility == View.VISIBLE) {
+            setNavSelected(R.id.navDial)
+        }
+    }
+
     override fun onStop() {
         SipManager.removeRegListener(regCb)
         SipManager.removeCallListener(callCb)
@@ -225,7 +251,12 @@ class MainActivity : AppCompatActivity() {
             val b = Button(this).apply {
                 text = k
                 textSize = 24f
-                setOnClickListener { onKey(k) }
+                setTextColor(android.graphics.Color.rgb(30, 41, 59))
+                backgroundTintList = android.content.res.ColorStateList.valueOf(
+                    android.graphics.Color.rgb(231, 238, 243)
+                )
+                elevation = dp(2).toFloat()
+                setOnClickListener { onKey(k); performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP) }
                 if (plusOnZero && k == "0") setOnLongClickListener { number.append("+"); refreshNumber(); true }
             }
             val lp = GridLayout.LayoutParams(
@@ -258,6 +289,7 @@ class MainActivity : AppCompatActivity() {
     private fun showDialer() {
         dialerGroup.visibility = View.VISIBLE
         callGroup.visibility = View.GONE
+        bottomNav.visibility = View.VISIBLE
         btnMute.text = "Mute"
         btnSpeaker.text = "Speaker"
         btnRecord.text = "Record"
@@ -290,6 +322,7 @@ class MainActivity : AppCompatActivity() {
 
         dialerGroup.visibility = View.GONE
         callGroup.visibility = View.VISIBLE
+        bottomNav.visibility = View.GONE
 
         val st = main.state
         val mainIncoming = SipManager.isIncomingState(st)
@@ -316,6 +349,23 @@ class MainActivity : AppCompatActivity() {
         btnSwap.visibility = if (talking >= 2) View.VISIBLE else View.GONE
         btnAddCall.visibility = if (inCall && talking < 2) View.VISIBLE else View.GONE
         btnRecord.text = if (SipManager.isRecording()) "Stop rec" else "Record"
+    }
+
+    private fun setNavSelected(selectedId: Int) {
+        val ids = listOf(R.id.navDial, R.id.navRecents, R.id.navContacts, R.id.navSettings)
+        ids.forEach { id ->
+            val item = findViewById<View>(id) as? android.widget.LinearLayout ?: return@forEach
+            item.background = if (id == selectedId) {
+                androidx.core.content.ContextCompat.getDrawable(this, R.drawable.bg_nav_selected)
+            } else null
+            item.alpha = if (id == selectedId) 1f else 0.88f
+            for (index in 0 until item.childCount) {
+                (item.getChildAt(index) as? TextView)?.setTextColor(
+                    if (id == selectedId) android.graphics.Color.WHITE
+                    else android.graphics.Color.rgb(100, 116, 139)
+                )
+            }
+        }
     }
 
     private fun updateReg() {
