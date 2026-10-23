@@ -16,10 +16,24 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Setup Android SDK and accept licenses
-        uses: android-actions/setup-android@v3
-        with:
-          accept-android-sdk-licenses: true
+      # Use the Android SDK preinstalled on GitHub-hosted Ubuntu runners.
+      # Accept licenses non-interactively so sdkmanager never waits for y/N input.
+      - name: Accept Android SDK licenses and install required packages
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          fi
+          if [ -z "$SDKMANAGER" ] || [ ! -x "$SDKMANAGER" ]; then
+            echo "Android sdkmanager was not found under $ANDROID_HOME/cmdline-tools" >&2
+            exit 1
+          fi
+          yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses >/dev/null || true
+          "$SDKMANAGER" --sdk_root="$ANDROID_HOME" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - uses: gradle/actions/setup-gradle@v4
         with:
