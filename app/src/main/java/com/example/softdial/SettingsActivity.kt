@@ -44,7 +44,19 @@ class SettingsActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             if (uri == null) return@registerForActivityResult
             val text = try {
-                contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: ""
+                contentResolver.openInputStream(uri)?.use { input ->
+                    val output = java.io.ByteArrayOutputStream()
+                    val buffer = ByteArray(8192)
+                    var total = 0
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        total += count
+                        if (total > 2 * 1024 * 1024) throw IllegalArgumentException("Backup file exceeds 2 MB")
+                        output.write(buffer, 0, count)
+                    }
+                    String(output.toByteArray(), Charsets.UTF_8)
+                } ?: ""
             } catch (e: Exception) {
                 Toast.makeText(this, "Cannot read file", Toast.LENGTH_LONG).show()
                 return@registerForActivityResult
@@ -120,8 +132,12 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnExport).setOnClickListener {
             askPass(
                 "Export backup",
-                "Optional passphrase to encrypt the file (it contains SIP passwords). Leave empty for a plain file."
+                "A passphrase of at least 10 characters is required. Keep it safe; it cannot be recovered."
             ) { pass ->
+                if (pass.length < 10) {
+                    Toast.makeText(this, "Use at least 10 characters", Toast.LENGTH_LONG).show()
+                    return@askPass
+                }
                 pendingPass = pass
                 val date = SimpleDateFormat("yyyyMMdd", Locale.US).format(Date())
                 exportLauncher.launch("softdial-backup-$date.json")

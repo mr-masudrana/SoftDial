@@ -1,4 +1,4 @@
-name: Build APK
+name: SoftDial Android CI
 
 on:
   push:
@@ -16,7 +16,10 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - uses: android-actions/setup-android@v3
+      - name: Setup Android SDK and accept licenses
+        uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: true
 
       - uses: gradle/actions/setup-gradle@v4
         with:
@@ -29,9 +32,14 @@ jobs:
           if [ -n "$GS_JSON" ]; then printf '%s' "$GS_JSON" > app/google-services.json; fi
 
       - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+        run: gradle --no-daemon assembleDebug --stacktrace
+
+      - name: Build release APK (unsigned)
+        run: gradle --no-daemon assembleRelease --stacktrace
 
       - uses: actions/upload-artifact@v4
         with:
-          name: softdial-debug
-          path: app/build/outputs/apk/debug/*.apk
+          name: softdial-apks
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk

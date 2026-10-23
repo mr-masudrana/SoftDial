@@ -49,10 +49,40 @@ class MainActivity : AppCompatActivity() {
 
     private val number = StringBuilder()
 
+    private var answerAfterPermission = false
+    private var pendingCallNumber: String? = null
     private val permLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
             CallService.start(this)
+            val micGranted = result[Manifest.permission.RECORD_AUDIO] == true || hasMicPermission()
+            if (answerAfterPermission) {
+                answerAfterPermission = false
+                if (micGranted) SipManager.answer()
+                else android.widget.Toast.makeText(this, "Microphone permission is required to answer calls", android.widget.Toast.LENGTH_LONG).show()
+            }
+            val numberToCall = pendingCallNumber
+            pendingCallNumber = null
+            if (numberToCall != null) {
+                if (micGranted) SipManager.call(numberToCall)
+                else android.widget.Toast.makeText(this, "Microphone permission is required to place calls", android.widget.Toast.LENGTH_LONG).show()
+            }
         }
+
+    private fun hasMicPermission(): Boolean =
+        androidx.core.content.ContextCompat.checkSelfPermission(
+            this, Manifest.permission.RECORD_AUDIO
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+    private fun answerSafely() {
+        if (hasMicPermission()) {
+            SipManager.answer()
+        } else {
+            answerAfterPermission = true
+            val permissions = mutableListOf(Manifest.permission.RECORD_AUDIO)
+            if (Build.VERSION.SDK_INT >= 33) permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+            permLauncher.launch(permissions.toTypedArray())
+        }
+    }
 
     private val regCb: (String) -> Unit = { _ -> runOnUiThread { updateReg() } }
     private val callCb: (Call.State, Call) -> Unit = { _, _ -> runOnUiThread { render() } }
@@ -87,7 +117,14 @@ class MainActivity : AppCompatActivity() {
 
         buildPad()
 
-        findViewById<Button>(R.id.btnCall).setOnClickListener { SipManager.call(number.toString()) }
+        findViewById<Button>(R.id.btnCall).setOnClickListener {
+            if (hasMicPermission()) SipManager.call(number.toString()) else {
+                pendingCallNumber = number.toString()
+                val permissions = mutableListOf(Manifest.permission.RECORD_AUDIO)
+                if (Build.VERSION.SDK_INT >= 33) permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+                permLauncher.launch(permissions.toTypedArray())
+            }
+        }
         findViewById<Button>(R.id.btnBack).apply {
             setOnClickListener {
                 if (number.isNotEmpty()) number.deleteCharAt(number.length - 1)
@@ -113,8 +150,8 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, ContactsActivity::class.java))
         }
 
-        btnAnswer.setOnClickListener { SipManager.answer() }
-        findViewById<Button>(R.id.btnAnswerWaiting).setOnClickListener { SipManager.answer() }
+        btnAnswer.setOnClickListener { answerSafely() }
+        findViewById<Button>(R.id.btnAnswerWaiting).setOnClickListener { answerSafely() }
         findViewById<Button>(R.id.btnDeclineWaiting).setOnClickListener { SipManager.declineIncoming() }
         findViewById<Button>(R.id.btnHangup).setOnClickListener { SipManager.hangUp() }
         btnMute.setOnClickListener {
@@ -151,7 +188,7 @@ class MainActivity : AppCompatActivity() {
     private fun handleIntent(i: Intent?) {
         if (i?.getBooleanExtra(EXTRA_ANSWER, false) == true) {
             i.removeExtra(EXTRA_ANSWER)
-            SipManager.answer()
+            if (hasMicPermission()) SipManager.answer() else answerAfterPermission = true
         }
     }
 

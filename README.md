@@ -9,7 +9,10 @@ theme, optional FCM push, phonebook import, in-call keypad (DTMF),
 recording sharing.
 
 ## Build
-Push to GitHub (`main`) -> Actions -> "Build APK" -> download `softdial-debug`.
+Push to GitHub (`main`) -> Actions -> "SoftDial Android CI" -> download `softdial-apks`.
+The workflow builds a debug APK and an unsigned release APK. The release APK is not
+production-distribution-ready until it is signed with your own release key. Do not
+commit signing keys or passwords to the repository.
 
 ## FCM push (optional)
 1. Create a Firebase project, add an Android app with package `com.example.softdial`.
@@ -37,5 +40,21 @@ Push to GitHub (`main`) -> Actions -> "Build APK" -> download `softdial-debug`.
 - Add call: puts the running call on hold and dials a second number.
 - Do Not Disturb (menu or Settings; optional exception for contacts) and call
   forwarding (always / busy / no answer). Done inside the app, so only while it runs.
-- Backup & restore (Settings): settings + SIP accounts + contacts to a JSON file,
-  optionally encrypted with a passphrase. Restore merges contacts.
+- Backup & restore (Settings): settings + SIP accounts + contacts to an encrypted JSON
+  file. A passphrase of at least 10 characters is required; unencrypted backup imports
+  are rejected. Restore merges accounts and contacts; it does not delete existing data.
+
+## Security and release notes (v6.0)
+- SIP account JSON is encrypted at rest with AES-GCM and an Android Keystore key. Existing
+  plaintext account JSON is migrated on app startup; legacy single-account password fields
+  are cleared after migration.
+- SIP SDK debug logging follows `BuildConfig.DEBUG` and is disabled in release builds.
+- Android cleartext traffic is not explicitly enabled.
+- Backup imports are size-limited and validate account/contact fields before applying data.
+- History entries have unique IDs to avoid deleting multiple calls with the same timestamp.
+- The Linphone dependency is pinned to a specific version for reproducible dependency resolution.
+- A background SIP service cannot guarantee incoming calls after force-stop, on every OEM,
+  or without a push-capable SIP provider. Test reboot, Doze, notification permission and
+  foreground-service behavior on the target Android versions.
+- Run a full device/SIP integration test before production release. This repository update
+  has not been compiled or tested against a live SIP server in this environment.
