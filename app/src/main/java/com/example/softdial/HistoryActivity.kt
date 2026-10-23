@@ -47,7 +47,7 @@ class HistoryActivity : AppCompatActivity() {
 
     private fun reload() {
         items = Store.history()
-        val rows = if (items.isEmpty()) listOf("No calls yet.") else items.map { e ->
+        val rows = if (items.isEmpty()) listOf(EntryRow("No calls yet.", "", null)) else items.map { e ->
             val icon = when {
                 e.note == "fwd" -> "↪ Forwarded"
                 e.note == "dnd" -> "🔕 Blocked (DND)"
@@ -57,9 +57,12 @@ class HistoryActivity : AppCompatActivity() {
             }
             val name = Store.nameFor(e.number) ?: e.number
             val dur = "%d:%02d".format(e.duration / 60, e.duration % 60)
-            "$name\n$icon · ${fmt.format(Date(e.time))} · $dur"
+            EntryRow(name, "$icon · ${fmt.format(Date(e.time))} · $dur", e.number)
         }
-        list.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, rows)
+        list.adapter = EntryAdapter(this, rows) { r ->
+            r.number?.let { SipManager.call(it); BottomNav.openDialer(this) }
+        }
+        invalidateOptionsMenu()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -67,9 +70,24 @@ class HistoryActivity : AppCompatActivity() {
         return true
     }
 
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        menu.findItem(R.id.menu_clear)?.isVisible = items.isNotEmpty()
+        return super.onPrepareOptionsMenu(menu)
+    }
+
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (item.itemId == R.id.menu_clear) {
-            Store.clearHistory(); reload(); return true
+            AlertDialog.Builder(this)
+                .setTitle("Clear all?")
+                .setMessage("Your entire call history will be deleted. This cannot be undone.")
+                .setPositiveButton("OK") { _, _ ->
+                    Store.clearHistory()
+                    reload()
+                    BottomNav.refreshBadge(this)
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+            return true
         }
         return super.onOptionsItemSelected(item)
     }

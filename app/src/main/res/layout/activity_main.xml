@@ -28,6 +28,23 @@
             android:visibility="gone" />
 
         <TextView
+            android:id="@+id/tvSugTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="8dp"
+            android:paddingTop="4dp"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <ListView
+            android:id="@+id/suggestList"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:divider="@null"
+            android:dividerHeight="0dp" />
+
+        <TextView
             android:id="@+id/tvNumber"
             android:layout_width="match_parent"
             android:layout_height="56dp"
@@ -52,7 +69,9 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="8dp"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
 
             <View
@@ -60,23 +79,31 @@
                 android:layout_height="1dp"
                 android:layout_weight="1" />
 
-            <Button
+            <ImageButton
                 android:id="@+id/btnCall"
-                android:layout_width="0dp"
-                android:layout_height="72dp"
-                android:layout_weight="1"
-                android:backgroundTint="#2E7D32"
-                android:text="Call"
-                android:textColor="#FFFFFF"
-                android:textSize="18sp" />
+                android:layout_width="68dp"
+                android:layout_height="68dp"
+                android:background="@drawable/bg_call"
+                android:contentDescription="Call"
+                android:scaleType="center"
+                android:src="@drawable/ic_call"
+                android:tint="#FFFFFF" />
 
-            <Button
-                android:id="@+id/btnBack"
+            <FrameLayout
                 android:layout_width="0dp"
-                android:layout_height="72dp"
-                android:layout_weight="1"
-                android:text="⌫"
-                android:textSize="22sp" />
+                android:layout_height="68dp"
+                android:layout_weight="1">
+
+                <ImageButton
+                    android:id="@+id/btnBack"
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:layout_gravity="center"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Delete"
+                    android:src="@drawable/ic_backspace"
+                    android:tint="?android:attr/textColorSecondary" />
+            </FrameLayout>
         </LinearLayout>
 
     </LinearLayout>

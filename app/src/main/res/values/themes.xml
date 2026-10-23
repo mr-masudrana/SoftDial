@@ -1,3 +1,12 @@
 <resources>
-    <style name="Theme.SoftDial" parent="Theme.AppCompat.DayNight.DarkActionBar" />
+    <!-- Light bar, same color as the bottom navigation (bar_bg). -->
+    <style name="Theme.SoftDial" parent="Theme.AppCompat.DayNight">
+        <item name="colorPrimary">@color/bar_bg</item>
+        <item name="colorPrimaryDark">@color/bar_bg</item>
+        <item name="colorAccent">@color/nav_active</item>
+        <item name="android:statusBarColor">@color/bar_bg</item>
+        <item name="android:navigationBarColor">@color/bar_bg</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
 </resources>

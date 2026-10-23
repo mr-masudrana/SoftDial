@@ -1,0 +1,11 @@
+<resources>
+    <style name="Theme.SoftDial" parent="Theme.AppCompat.DayNight">
+        <item name="colorPrimary">@color/bar_bg</item>
+        <item name="colorPrimaryDark">@color/bar_bg</item>
+        <item name="colorAccent">@color/nav_active</item>
+        <item name="android:statusBarColor">@color/bar_bg</item>
+        <item name="android:navigationBarColor">@color/bar_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>

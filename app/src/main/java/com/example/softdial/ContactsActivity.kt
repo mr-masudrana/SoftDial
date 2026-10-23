@@ -129,42 +129,16 @@ class ContactsActivity : AppCompatActivity() {
     private fun reload() {
         items = Store.contacts().filter { matches(it) }
         val rows = if (items.isEmpty()) {
-            listOf(if (query.isBlank()) "No contacts yet. Tap Add." else "No matches for \"${query.trim()}\"")
-        } else items.map { "${it.name}\n${it.number}" }
-        list.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, rows)
-    }
-
-    private val permLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-            if (ok) importFromPhone()
-            else Toast.makeText(this, "Contacts permission denied", Toast.LENGTH_SHORT).show()
+            listOf(
+                EntryRow(
+                    if (query.isBlank()) "No contacts yet. Tap Add." else "No matches for \"${query.trim()}\"",
+                    "", null
+                )
+            )
+        } else items.map { EntryRow(it.name, it.number, it.number) }
+        list.adapter = EntryAdapter(this, rows) { r ->
+            r.number?.let { SipManager.call(it); BottomNav.openDialer(this) }
         }
-
-    private fun importFromPhone() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            permLauncher.launch(Manifest.permission.READ_CONTACTS)
-            return
-        }
-        val found = mutableListOf<Store.Contact>()
-        contentResolver.query(
-            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-            arrayOf(
-                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-                ContactsContract.CommonDataKinds.Phone.NUMBER
-            ),
-            null, null, null
-        )?.use { c ->
-            while (c.moveToNext()) {
-                val name = c.getString(0) ?: continue
-                val num = (c.getString(1) ?: continue).filter { it.isDigit() || it == '+' }
-                if (num.isNotEmpty()) found.add(Store.Contact(name, num))
-            }
-        }
-        val added = Store.addContacts(found)
-        reload()
-        Toast.makeText(this, "Imported $added new contacts", Toast.LENGTH_LONG).show()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -178,7 +152,6 @@ class ContactsActivity : AppCompatActivity() {
                 showContactDialog(this, null, "", "") { reload() }
                 return true
             }
-            R.id.menu_import -> { importFromPhone(); return true }
         }
         return super.onOptionsItemSelected(item)
     }

@@ -15,6 +15,18 @@
             android:layout_height="wrap_content"
             android:text="Manage SIP accounts" />
 
+        <Button
+            android:id="@+id/btnRecordings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Recordings" />
+
+        <Button
+            android:id="@+id/btnImportContacts"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Import contacts from phone" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

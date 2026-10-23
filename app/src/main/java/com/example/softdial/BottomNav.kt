@@ -43,15 +43,13 @@ object BottomNav {
         val root = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL }
         root.addView(content, LinearLayout.LayoutParams(match, 0, 1f))
 
-        val bg = TypedValue()
-        act.theme.resolveAttribute(android.R.attr.colorBackground, bg, true)
         val ripple = TypedValue()
         act.theme.resolveAttribute(android.R.attr.selectableItemBackground, ripple, true)
 
         val holder = LinearLayout(act).apply {
             id = R.id.bottomNav
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(bg.data)
+            setBackgroundColor(ContextCompat.getColor(act, R.color.bar_bg))
         }
         holder.addView(View(act).apply { setBackgroundColor(0x33888888) }, LinearLayout.LayoutParams(match, 1))
 
@@ -121,6 +119,9 @@ object BottomNav {
     fun refreshBadge(act: Activity) {
         act.findViewById<TextView>(R.id.navBadge)?.let { updateBadge(it) }
     }
+
+    /** Shows the dialer (and the call screen if a call is running). */
+    fun openDialer(act: AppCompatActivity) = go(act, DIALER)
 
     @Suppress("DEPRECATION")
     private fun go(act: AppCompatActivity, index: Int) {

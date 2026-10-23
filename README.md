@@ -1,4 +1,4 @@
-# Soft Dial (starter v8)
+# Soft Dial (starter v11)
 
 SIP dialer using Linphone SDK.
 
@@ -49,3 +49,20 @@ Push to GitHub (`main`) -> Actions -> "Build APK" -> download `softdial-debug`.
 - Selected bottom tab uses a filled icon (ic_nav_*_filled.xml).
 - Red badge on Recents shows unseen missed calls (cleared when Recents is opened).
 - Contacts: search box (name or number).
+
+## v9
+- Dialer: keypad at the bottom; middle area shows recent calls, and matching
+  contacts/numbers (also by name letters, e.g. 566 -> Jon) while typing. Tap to fill the number.
+- Top bar, status bar and navigation bar use the same color as the bottom nav
+  (`bar_bg` in res/values/colors.xml and values-night).
+
+## v10
+- No three-dot menus. Recordings and Import contacts are in Settings.
+- Recents: "Clear all" in the bar, with a confirmation dialog.
+- Contacts permission is requested at app start (like notifications); contacts are
+  copied once automatically. Settings -> "Import contacts from phone" repeats it.
+
+## v11
+- Round keypad keys with letters (ABC...). Round green call button, custom backspace icon.
+- Call button on the right of every row in Recents, Contacts and dialer suggestions.
+  (Tapping the row itself still opens options / fills the number.)

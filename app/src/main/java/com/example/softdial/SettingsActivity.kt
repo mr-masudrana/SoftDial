@@ -1,5 +1,6 @@
 package com.example.softdial
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -26,6 +27,22 @@ import java.util.Locale
 class SettingsActivity : AppCompatActivity() {
 
     private var pendingPass = ""
+
+    private val contactsPerm =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+            if (ok) importPhoneContacts()
+            else Toast.makeText(this, "Contacts permission denied", Toast.LENGTH_SHORT).show()
+        }
+
+    private fun importPhoneContacts() {
+        Prefs.contactsImported = true
+        Thread {
+            val n = PhoneBook.importAll(this)
+            runOnUiThread {
+                Toast.makeText(this, "Imported $n new contacts", Toast.LENGTH_LONG).show()
+            }
+        }.start()
+    }
 
     private val exportLauncher =
         registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -102,6 +119,14 @@ class SettingsActivity : AppCompatActivity() {
             else "FCM ready. Works only if your SIP server supports push."
         } else {
             "FCM not configured (APK was built without google-services.json)."
+        }
+
+        findViewById<Button>(R.id.btnRecordings).setOnClickListener {
+            startActivity(Intent(this, RecordingsActivity::class.java))
+        }
+        findViewById<Button>(R.id.btnImportContacts).setOnClickListener {
+            if (PhoneBook.hasPermission(this)) importPhoneContacts()
+            else contactsPerm.launch(Manifest.permission.READ_CONTACTS)
         }
 
         findViewById<Button>(R.id.btnAccounts).setOnClickListener {

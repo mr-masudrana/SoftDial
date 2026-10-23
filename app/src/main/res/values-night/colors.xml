@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="bar_bg">#303030</color>
+    <color name="key_bg">#4A4A4A</color>
     <color name="nav_active">#81C784</color>
     <color name="nav_inactive">#9E9E9E</color>
 </resources>

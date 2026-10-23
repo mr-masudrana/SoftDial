@@ -8,7 +8,15 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.text.InputType
+import android.text.Spannable
+import android.text.SpannableStringBuilder
+import android.text.style.RelativeSizeSpan
+import android.view.Gravity
+import androidx.core.content.ContextCompat
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.ListView
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.Toast
@@ -27,6 +35,13 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var tvReg: TextView
     private lateinit var bottomNav: View
+    private lateinit var tvSugTitle: TextView
+    private lateinit var suggestList: ListView
+    private lateinit var sugAdapter: EntryAdapter
+    private val sugs = mutableListOf<EntryRow>()
+
+    private fun mkSug(name: String, number: String, tag: String) =
+        EntryRow(name, "$number  ·  $tag", number)
     private lateinit var tvNumber: TextView
     private lateinit var tvContact: TextView
     private lateinit var tvCallInfo: TextView
@@ -51,9 +66,23 @@ class MainActivity : AppCompatActivity() {
     private val number = StringBuilder()
 
     private val permLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
             CallService.start(this)
+            if (result[Manifest.permission.READ_CONTACTS] == true) importPhoneContactsOnce()
         }
+
+    /** First time the contacts permission is granted: copy the phone book into the app. */
+    private fun importPhoneContactsOnce() {
+        if (Prefs.contactsImported) return
+        Prefs.contactsImported = true
+        Thread {
+            val n = PhoneBook.importAll(this)
+            runOnUiThread {
+                Toast.makeText(this, "Imported $n contacts", Toast.LENGTH_SHORT).show()
+                refreshSuggestions()
+            }
+        }.start()
+    }
 
     private val regCb: (String) -> Unit = { _ -> runOnUiThread { updateReg() } }
     private val callCb: (Call.State, Call) -> Unit = { _, _ -> runOnUiThread { render(); BottomNav.refreshBadge(this) } }
@@ -68,6 +97,17 @@ class MainActivity : AppCompatActivity() {
         Push.refreshToken(this)
 
         tvReg = findViewById(R.id.tvReg)
+        tvSugTitle = findViewById(R.id.tvSugTitle)
+        suggestList = findViewById(R.id.suggestList)
+        sugAdapter = EntryAdapter(this, sugs) { r -> r.number?.let { SipManager.call(it) } }
+        suggestList.adapter = sugAdapter
+        suggestList.onItemClickListener = AdapterView.OnItemClickListener { _, _, pos, _ ->
+            val s = sugs.getOrNull(pos) ?: return@OnItemClickListener
+            val num = s.number ?: return@OnItemClickListener
+            number.clear()
+            number.append(num.filter { it.isDigit() || it == '+' || it == '*' || it == '#' })
+            refreshNumber()
+        }
         tvNumber = findViewById(R.id.tvNumber)
         tvContact = findViewById(R.id.tvContact)
         tvCallInfo = findViewById(R.id.tvCallInfo)
@@ -91,8 +131,8 @@ class MainActivity : AppCompatActivity() {
 
         buildPad()
 
-        findViewById<Button>(R.id.btnCall).setOnClickListener { SipManager.call(number.toString()) }
-        findViewById<Button>(R.id.btnBack).apply {
+        findViewById<View>(R.id.btnCall).setOnClickListener { SipManager.call(number.toString()) }
+        findViewById<View>(R.id.btnBack).apply {
             setOnClickListener {
                 if (number.isNotEmpty()) number.deleteCharAt(number.length - 1)
                 refreshNumber()
@@ -133,7 +173,7 @@ class MainActivity : AppCompatActivity() {
         btnSwap.setOnClickListener { SipManager.swap() }
         btnAddCall.setOnClickListener { showAddCallDialog() }
 
-        val perms = mutableListOf(Manifest.permission.RECORD_AUDIO)
+        val perms = mutableListOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.READ_CONTACTS)
         if (Build.VERSION.SDK_INT >= 33) perms.add(Manifest.permission.POST_NOTIFICATIONS)
         permLauncher.launch(perms.toTypedArray())
 
@@ -159,6 +199,7 @@ class MainActivity : AppCompatActivity() {
         SipManager.addCallListener(callCb)
         updateReg()
         refreshFrom()
+        refreshSuggestions()
         BottomNav.refreshBadge(this)
         render()
     }
@@ -172,21 +213,45 @@ class MainActivity : AppCompatActivity() {
     // ---- dialpad ----
 
     private fun buildPad() {
-        fillPad(findViewById(R.id.pad), 60, true) { number.append(it); refreshNumber() }
-        fillPad(dtmfPad, 52, false) {
+        fillPad(findViewById(R.id.pad), 60, 26f, true) { number.append(it); refreshNumber() }
+        fillPad(dtmfPad, 52, 20f, false) {
             SipManager.sendDtmf(it[0])
             tvDtmf.append(it)
         }
     }
 
-    private fun fillPad(pad: GridLayout, heightDp: Int, plusOnZero: Boolean, onKey: (String) -> Unit) {
+    private val keyLetters = mapOf(
+        "2" to "ABC", "3" to "DEF", "4" to "GHI", "5" to "JKL",
+        "6" to "MNO", "7" to "PQRS", "8" to "TUV", "9" to "WXYZ", "0" to "+"
+    )
+
+    private fun keyLabel(k: String): CharSequence {
+        val sub = keyLetters[k] ?: return k
+        val sb = SpannableStringBuilder(k).append("\n").append(sub)
+        sb.setSpan(RelativeSizeSpan(0.36f), k.length + 1, sb.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+        return sb
+    }
+
+    /** Round keys with small letters under the digits. */
+    private fun fillPad(
+        pad: GridLayout, diameterDp: Int, sizeSp: Float, plusOnZero: Boolean, onKey: (String) -> Unit
+    ) {
         val keys = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#")
-        val h = dp(heightDp)
+        val d = dp(diameterDp)
         val m = dp(4)
         for (k in keys) {
             val b = Button(this).apply {
-                text = k
-                textSize = 24f
+                text = keyLabel(k)
+                textSize = sizeSp
+                setAllCaps(false)
+                minWidth = 0
+                minHeight = 0
+                minimumWidth = 0
+                minimumHeight = 0
+                setPadding(0, 0, 0, 0)
+                setLineSpacing(0f, 0.85f)
+                stateListAnimator = null
+                background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_key)
                 setOnClickListener { onKey(k) }
                 if (plusOnZero && k == "0") setOnLongClickListener { number.append("+"); refreshNumber(); true }
             }
@@ -194,8 +259,9 @@ class MainActivity : AppCompatActivity() {
                 GridLayout.spec(GridLayout.UNDEFINED),
                 GridLayout.spec(GridLayout.UNDEFINED, 1f)
             ).apply {
-                width = 0
-                height = h
+                width = d
+                height = d
+                setGravity(Gravity.CENTER)
                 setMargins(m, m, m, m)
             }
             pad.addView(b, lp)
@@ -205,6 +271,58 @@ class MainActivity : AppCompatActivity() {
     private fun refreshNumber() {
         tvNumber.text = number.toString()
         tvContact.text = Store.nameFor(number.toString()) ?: ""
+        refreshSuggestions()
+    }
+
+    private fun digitsOf(s: String) = s.filter { it.isDigit() || it == '+' }
+
+    /** Letters on a phone keypad: "Jon" -> "566". */
+    private fun t9(name: String): String = name.lowercase().map {
+        when (it) {
+            in 'a'..'c' -> '2'; in 'd'..'f' -> '3'; in 'g'..'i' -> '4'
+            in 'j'..'l' -> '5'; in 'm'..'o' -> '6'; in 'p'..'s' -> '7'
+            in 't'..'v' -> '8'; in 'w'..'z' -> '9'
+            ' ' -> ' '
+            else -> if (it.isDigit()) it else '\u0000'
+        }
+    }.filter { it != '\u0000' }.joinToString("")
+
+    private fun nameMatchesKeys(name: String, keys: String): Boolean {
+        if (keys.length < 2 || !keys.all { it.isDigit() }) return false
+        return t9(name).split(" ").any { it.startsWith(keys) }
+    }
+
+    /** Middle area: recent calls when empty, matching contacts / numbers while typing. */
+    private fun refreshSuggestions() {
+        val q = number.toString()
+        sugs.clear()
+        if (q.isEmpty()) {
+            val seen = mutableSetOf<String>()
+            for (e in Store.history()) {
+                if (!seen.add(digitsOf(e.number))) continue
+                val tag = if (e.missed) "missed" else if (e.incoming) "incoming" else "outgoing"
+                sugs.add(mkSug(Store.nameFor(e.number) ?: e.number, e.number, tag))
+                if (sugs.size >= 8) break
+            }
+            tvSugTitle.text = if (sugs.isEmpty()) "No recent calls" else "Recent"
+        } else {
+            val digits = digitsOf(q)
+            val used = mutableSetOf<String>()
+            if (digits.isNotEmpty()) {
+                for (c in Store.contacts()) {
+                    val nd = digitsOf(c.number)
+                    if (nd.contains(digits) || nameMatchesKeys(c.name, digits)) {
+                        sugs.add(mkSug(c.name, c.number, "contact")); used.add(nd)
+                    }
+                }
+                for (e in Store.history()) {
+                    val nd = digitsOf(e.number)
+                    if (nd.contains(digits) && used.add(nd)) sugs.add(mkSug(e.number, e.number, "recent"))
+                }
+            }
+            tvSugTitle.text = if (sugs.isEmpty()) "No matches" else "Matches"
+        }
+        sugAdapter.notifyDataSetChanged()
     }
 
     private fun refreshFrom() {
@@ -314,25 +432,5 @@ class MainActivity : AppCompatActivity() {
                 SipManager.addCall(cs[i].number)
             }
             .show()
-    }
-
-    // ---- menu ----
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.main_menu, menu)
-        return true
-    }
-
-    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
-        menu.findItem(R.id.menu_dnd)?.title =
-            if (Prefs.dnd) "Do Not Disturb: ON" else "Do Not Disturb: off"
-        return super.onPrepareOptionsMenu(menu)
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
-        R.id.menu_settings -> { startActivity(Intent(this, SettingsActivity::class.java)); true }
-        R.id.menu_dnd -> { Prefs.dnd = !Prefs.dnd; invalidateOptionsMenu(); updateReg(); true }
-        R.id.menu_recordings -> { startActivity(Intent(this, RecordingsActivity::class.java)); true }
-        else -> super.onOptionsItemSelected(item)
     }
 }

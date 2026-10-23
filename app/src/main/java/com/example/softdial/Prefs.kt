@@ -81,6 +81,11 @@ object Prefs {
         get() = sp.getLong("historySeen", 0L)
         set(v) = sp.edit().putLong("historySeen", v).apply()
 
+    /** True once contacts were copied from the phone book after the permission was granted. */
+    var contactsImported: Boolean
+        get() = sp.getBoolean("contactsImported", false)
+        set(v) = sp.edit().putBoolean("contactsImported", v).apply()
+
     var defaultAccountId: String
         get() = sp.getString("defaultAccountId", "") ?: ""
         set(v) = sp.edit().putString("defaultAccountId", v).apply()
