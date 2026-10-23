@@ -1,7 +1,6 @@
 package com.example.softdial
 
 import android.content.Context
-import com.example.softdial.BuildConfig
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
@@ -34,7 +33,6 @@ object SipManager {
     private val handler = Handler(Looper.getMainLooper())
     /** callId -> "dnd" or "fwd" for calls handled automatically */
     private val autoNotes = ConcurrentHashMap<String, String>()
-    private val noAnswerTasks = ConcurrentHashMap<String, Runnable>()
 
     private val regListeners = CopyOnWriteArrayList<(String) -> Unit>()
     private val callListeners = CopyOnWriteArrayList<(Call.State, Call) -> Unit>()
@@ -63,14 +61,8 @@ object SipManager {
         }
 
         override fun onCallStateChanged(core: Core, call: Call, state: Call.State, message: String) {
-            val callId = call.callLog?.callId
             if (state == Call.State.IncomingReceived && applyRules(core, call)) {
-                callId?.let { cancelNoAnswerTask(it) }
                 return   // rejected or forwarded automatically: do not ring
-            }
-            if (state == Call.State.Connected || state == Call.State.StreamsRunning ||
-                state == Call.State.End || state == Call.State.Error || state == Call.State.Released) {
-                callId?.let { cancelNoAnswerTask(it) }
             }
             if (state == Call.State.StreamsRunning && Prefs.autoRecord && !call.isRecording) {
                 call.startRecording()
@@ -115,7 +107,7 @@ object SipManager {
         Prefs.init(appContext)
         Store.init(appContext)
         val factory = Factory.instance()
-        factory.setDebugMode(BuildConfig.DEBUG, "SoftDial")
+        factory.setDebugMode(true, "SoftDial")
         core = factory.createCore(null, null, appContext).apply {
             isNativeRingingEnabled = true
             isVibrationOnIncomingCallEnabled = true
@@ -155,6 +147,7 @@ object SipManager {
 
             // Push (FCM): only works if the SIP server/proxy supports push notifications
             if (Prefs.pushEnabled && Prefs.fcmToken.isNotBlank() && Push.available(appContext)) {
+                params.isPushNotificationAllowed = true
                 params.pushNotificationConfig?.let {
                     it.provider = "fcm"
                     it.param = Push.projectId(appContext)
@@ -171,7 +164,7 @@ object SipManager {
     }
 
     private fun coreAccountFor(a: Store.SipAccount): Account? =
-        core?.accountList?.firstOrNull {
+        core?.accounts?.firstOrNull {
             val id = it.params.identityAddress
             id?.username == a.user && id?.domain == a.server
         }
@@ -202,21 +195,13 @@ object SipManager {
             return true
         }
         if (Prefs.fwdMode == "noanswer") {
-            cancelNoAnswerTask(id)
-            val task = Runnable {
+            handler.postDelayed({
                 try {
-                    if (Prefs.fwdMode == "noanswer" && isIncomingState(call.state)) forward(call, id)
-                } catch (_: Exception) { /* call already gone */ }
-                finally { noAnswerTasks.remove(id) }
-            }
-            noAnswerTasks[id] = task
-            handler.postDelayed(task, Prefs.fwdDelay.coerceIn(5, 120) * 1000L)
+                    if (isIncomingState(call.state)) forward(call, id)
+                } catch (e: Exception) { /* call already gone */ }
+            }, Prefs.fwdDelay.coerceAtLeast(5) * 1000L)
         }
         return false
-    }
-
-    private fun cancelNoAnswerTask(id: String) {
-        noAnswerTasks.remove(id)?.let { handler.removeCallbacks(it) }
     }
 
     private fun forward(call: Call, id: String): Boolean {
@@ -296,14 +281,7 @@ object SipManager {
 
     fun declineIncoming() { incomingCall()?.terminate() }
 
-    fun hangUp() {
-        // Do not accidentally terminate a ringing incoming call when another call is active.
-        val call = liveCalls().firstOrNull {
-            !isIncomingState(it.state) && it.state != Call.State.Released &&
-                it.state != Call.State.End && it.state != Call.State.Error
-        } ?: incomingCall()
-        call?.terminate()
-    }
+    fun hangUp() { activeCall()?.terminate() }
 
     fun toggleHold() {
         val call = activeCall() ?: return
@@ -357,13 +335,8 @@ object SipManager {
 
     fun isRecording(): Boolean = activeCall()?.isRecording == true
 
-    fun recordingsDir(context: Context): File {
-        val base = context.getExternalFilesDir(null) ?: context.filesDir
-        return File(base, "recordings").apply {
-            if (!exists() && !mkdirs()) throw java.io.IOException("Cannot create recordings directory")
-            if (!isDirectory) throw java.io.IOException("Recording path is not a directory")
-        }
-    }
+    fun recordingsDir(context: Context): File =
+        File(context.getExternalFilesDir(null), "recordings").apply { mkdirs() }
 
     private fun newRecordingPath(remote: String): String {
         val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())

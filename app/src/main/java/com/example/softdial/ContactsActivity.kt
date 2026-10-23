@@ -2,6 +2,12 @@ package com.example.softdial
 
 import android.Manifest
 import android.content.Context
+import android.content.res.ColorStateList
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.ViewGroup
+import android.view.WindowManager
+import android.view.inputmethod.EditorInfo
 import android.content.pm.PackageManager
 import android.provider.ContactsContract
 import android.widget.Toast
@@ -57,12 +63,40 @@ class ContactsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         title = "Contacts"
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        window.setSoftInputMode(
+            WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or
+                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        )
         list = ListView(this)
-        setContentView(list)
+        val d = resources.displayMetrics.density
+        val search = EditText(this).apply {
+            hint = "Search contacts"
+            inputType = InputType.TYPE_CLASS_TEXT
+            imeOptions = EditorInfo.IME_ACTION_SEARCH
+            setSingleLine()
+            setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_search, 0, 0, 0)
+            compoundDrawablePadding = (8 * d).toInt()
+            compoundDrawableTintList =
+                ColorStateList.valueOf(ContextCompat.getColor(this@ContactsActivity, R.color.nav_inactive))
+            addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
+                override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    query = s?.toString() ?: ""
+                    reload()
+                }
+            })
+        }
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((12 * d).toInt(), (8 * d).toInt(), (12 * d).toInt(), 0)
+            addView(search, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            addView(list, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        }
+        setContentView(BottomNav.wrap(this, box, BottomNav.CONTACTS))
 
         list.setOnItemClickListener { _, _, pos, _ ->
-            val c = items[pos]
+            val c = items.getOrNull(pos) ?: return@setOnItemClickListener
             AlertDialog.Builder(this)
                 .setTitle("${c.name}\n${c.number}")
                 .setItems(arrayOf("Call", "Edit", "Delete")) { _, which ->
@@ -77,10 +111,26 @@ class ContactsActivity : AppCompatActivity() {
         reload()
     }
 
+    private var query = ""
+
+    private fun matches(c: Store.Contact): Boolean {
+        val q = query.trim().lowercase()
+        if (q.isEmpty()) return true
+        val qd = q.filter { it.isDigit() || it == '+' }
+        return c.name.lowercase().contains(q) ||
+            (qd.isNotEmpty() && c.number.filter { it.isDigit() || it == '+' }.contains(qd))
+    }
+
+    override fun onStart() {
+        super.onStart()
+        BottomNav.refreshBadge(this)
+    }
+
     private fun reload() {
-        items = Store.contacts()
-        val rows = if (items.isEmpty()) listOf("No contacts yet. Tap Add.")
-        else items.map { "${it.name}\n${it.number}" }
+        items = Store.contacts().filter { matches(it) }
+        val rows = if (items.isEmpty()) {
+            listOf(if (query.isBlank()) "No contacts yet. Tap Add." else "No matches for \"${query.trim()}\"")
+        } else items.map { "${it.name}\n${it.number}" }
         list.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, rows)
     }
 

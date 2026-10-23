@@ -20,9 +20,8 @@ class HistoryActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         title = "Recents"
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
         list = ListView(this)
-        setContentView(list)
+        setContentView(BottomNav.wrap(this, list, BottomNav.RECENTS))
 
         list.setOnItemClickListener { _, _, pos, _ ->
             val e = items.getOrNull(pos) ?: return@setOnItemClickListener
@@ -32,12 +31,18 @@ class HistoryActivity : AppCompatActivity() {
                     when (which) {
                         0 -> { SipManager.call(e.number); finish() }
                         1 -> showContactDialog(this, null, Store.nameFor(e.number) ?: "", e.number) { reload() }
-                        2 -> { Store.deleteEntry(e.id); reload() }
+                        2 -> { Store.deleteEntry(e.time); reload() }
                     }
                 }
                 .show()
         }
         reload()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Prefs.historySeen = System.currentTimeMillis()
+        BottomNav.refreshBadge(this)
     }
 
     private fun reload() {

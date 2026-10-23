@@ -1,12 +1,9 @@
-name: SoftDial Android CI
+name: Build APK
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
-
-permissions:
-  contents: read
 
 jobs:
   build:
@@ -17,25 +14,13 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: 17
 
-      # Avoid android-actions/setup-android here: its sdkmanager license prompt
-      # can remain interactive on some runners. Accept licenses explicitly.
-      - name: Accept Android SDK licenses and install required packages
-        shell: bash
-        run: |
-          set -euo pipefail
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          if [ ! -x "$SDKMANAGER" ]; then
-            SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
-          fi
-          test -x "$SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+      - uses: android-actions/setup-android@v3
 
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.7'
+          gradle-version: 8.7
 
       - name: Add google-services.json (optional, for FCM push)
         env:
@@ -43,69 +28,10 @@ jobs:
         run: |
           if [ -n "$GS_JSON" ]; then printf '%s' "$GS_JSON" > app/google-services.json; fi
 
-      - name: Prepare release signing (if repository secrets are configured)
-        id: signing
-        env:
-          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
-            echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/softdial-release.jks"
-            test -s "$RUNNER_TEMP/softdial-release.jks"
-            keytool -list -keystore "$RUNNER_TEMP/softdial-release.jks" -storepass "$KEYSTORE_PASSWORD" >/dev/null
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "Release signing secrets are missing; the release APK will be unsigned. Configure the four ANDROID_* repository secrets to produce a signed release." 
-          fi
-
       - name: Build debug APK
-        run: gradle --no-daemon assembleDebug --stacktrace
+        run: gradle assembleDebug --stacktrace
 
-      - name: Build signed release APK
-        if: steps.signing.outputs.configured == 'true'
-        env:
-          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/softdial-release.jks
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: gradle --no-daemon assembleRelease --stacktrace
-
-      - name: Build unsigned release APK (fallback)
-        if: steps.signing.outputs.configured != 'true'
-        run: gradle --no-daemon assembleRelease --stacktrace
-
-      - name: Verify signed release APK
-        if: steps.signing.outputs.configured == 'true'
-        run: |
-          APK="app/build/outputs/apk/release/app-release.apk"
-          test -f "$APK"
-          "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n1)/apksigner" verify --verbose "$APK"
-
-      - name: Upload debug APK
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: softdial-debug-apk
+          name: softdial-debug
           path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload signed release APK
-        if: steps.signing.outputs.configured == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: softdial-signed-release-apk
-          path: app/build/outputs/apk/release/*.apk
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Upload unsigned release APK (fallback)
-        if: steps.signing.outputs.configured != 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: softdial-unsigned-release-apk
-          path: app/build/outputs/apk/release/*.apk
-          if-no-files-found: error
-          retention-days: 14

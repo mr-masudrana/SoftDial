@@ -26,6 +26,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var tvReg: TextView
+    private lateinit var bottomNav: View
     private lateinit var tvNumber: TextView
     private lateinit var tvContact: TextView
     private lateinit var tvCallInfo: TextView
@@ -33,7 +34,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvDtmf: TextView
     private lateinit var tvWaiting: TextView
     private lateinit var dialerGroup: View
-    private lateinit var bottomNav: View
     private lateinit var callGroup: View
     private lateinit var controls: View
     private lateinit var waitingGroup: View
@@ -50,47 +50,20 @@ class MainActivity : AppCompatActivity() {
 
     private val number = StringBuilder()
 
-    private var answerAfterPermission = false
-    private var pendingCallNumber: String? = null
     private val permLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
             CallService.start(this)
-            val micGranted = result[Manifest.permission.RECORD_AUDIO] == true || hasMicPermission()
-            if (answerAfterPermission) {
-                answerAfterPermission = false
-                if (micGranted) SipManager.answer()
-                else android.widget.Toast.makeText(this, "Microphone permission is required to answer calls", android.widget.Toast.LENGTH_LONG).show()
-            }
-            val numberToCall = pendingCallNumber
-            pendingCallNumber = null
-            if (numberToCall != null) {
-                if (micGranted) SipManager.call(numberToCall)
-                else android.widget.Toast.makeText(this, "Microphone permission is required to place calls", android.widget.Toast.LENGTH_LONG).show()
-            }
         }
-
-    private fun hasMicPermission(): Boolean =
-        androidx.core.content.ContextCompat.checkSelfPermission(
-            this, Manifest.permission.RECORD_AUDIO
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-
-    private fun answerSafely() {
-        if (hasMicPermission()) {
-            SipManager.answer()
-        } else {
-            answerAfterPermission = true
-            val permissions = mutableListOf(Manifest.permission.RECORD_AUDIO)
-            if (Build.VERSION.SDK_INT >= 33) permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-            permLauncher.launch(permissions.toTypedArray())
-        }
-    }
 
     private val regCb: (String) -> Unit = { _ -> runOnUiThread { updateReg() } }
-    private val callCb: (Call.State, Call) -> Unit = { _, _ -> runOnUiThread { render() } }
+    private val callCb: (Call.State, Call) -> Unit = { _, _ -> runOnUiThread { render(); BottomNav.refreshBadge(this) } }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        setContentView(
+            BottomNav.wrap(this, layoutInflater.inflate(R.layout.activity_main, null), BottomNav.DIALER)
+        )
+        bottomNav = findViewById(R.id.bottomNav)
         SipManager.init(this)
         Push.refreshToken(this)
 
@@ -102,7 +75,6 @@ class MainActivity : AppCompatActivity() {
         tvDtmf = findViewById(R.id.tvDtmf)
         tvWaiting = findViewById(R.id.tvWaiting)
         dialerGroup = findViewById(R.id.dialerGroup)
-        bottomNav = findViewById(R.id.bottomNav)
         callGroup = findViewById(R.id.callGroup)
         controls = findViewById(R.id.controls)
         waitingGroup = findViewById(R.id.waitingGroup)
@@ -119,14 +91,7 @@ class MainActivity : AppCompatActivity() {
 
         buildPad()
 
-        findViewById<Button>(R.id.btnCall).setOnClickListener {
-            if (hasMicPermission()) SipManager.call(number.toString()) else {
-                pendingCallNumber = number.toString()
-                val permissions = mutableListOf(Manifest.permission.RECORD_AUDIO)
-                if (Build.VERSION.SDK_INT >= 33) permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-                permLauncher.launch(permissions.toTypedArray())
-            }
-        }
+        findViewById<Button>(R.id.btnCall).setOnClickListener { SipManager.call(number.toString()) }
         findViewById<Button>(R.id.btnBack).apply {
             setOnClickListener {
                 if (number.isNotEmpty()) number.deleteCharAt(number.length - 1)
@@ -145,32 +110,9 @@ class MainActivity : AppCompatActivity() {
                 }
                 .show()
         }
-        findViewById<Button>(R.id.btnRecents).setOnClickListener {
-            startActivity(Intent(this, HistoryActivity::class.java))
-        }
-        findViewById<Button>(R.id.btnContacts).setOnClickListener {
-            startActivity(Intent(this, ContactsActivity::class.java))
-        }
 
-        findViewById<View>(R.id.navDial).setOnClickListener {
-            showDialer()
-            setNavSelected(R.id.navDial)
-        }
-        findViewById<View>(R.id.navRecents).setOnClickListener {
-            setNavSelected(R.id.navRecents)
-            startActivity(Intent(this, HistoryActivity::class.java))
-        }
-        findViewById<View>(R.id.navContacts).setOnClickListener {
-            setNavSelected(R.id.navContacts)
-            startActivity(Intent(this, ContactsActivity::class.java))
-        }
-        findViewById<View>(R.id.navSettings).setOnClickListener {
-            setNavSelected(R.id.navSettings)
-            startActivity(Intent(this, SettingsActivity::class.java))
-        }
-
-        btnAnswer.setOnClickListener { answerSafely() }
-        findViewById<Button>(R.id.btnAnswerWaiting).setOnClickListener { answerSafely() }
+        btnAnswer.setOnClickListener { SipManager.answer() }
+        findViewById<Button>(R.id.btnAnswerWaiting).setOnClickListener { SipManager.answer() }
         findViewById<Button>(R.id.btnDeclineWaiting).setOnClickListener { SipManager.declineIncoming() }
         findViewById<Button>(R.id.btnHangup).setOnClickListener { SipManager.hangUp() }
         btnMute.setOnClickListener {
@@ -207,7 +149,7 @@ class MainActivity : AppCompatActivity() {
     private fun handleIntent(i: Intent?) {
         if (i?.getBooleanExtra(EXTRA_ANSWER, false) == true) {
             i.removeExtra(EXTRA_ANSWER)
-            if (hasMicPermission()) SipManager.answer() else answerAfterPermission = true
+            SipManager.answer()
         }
     }
 
@@ -217,14 +159,8 @@ class MainActivity : AppCompatActivity() {
         SipManager.addCallListener(callCb)
         updateReg()
         refreshFrom()
+        BottomNav.refreshBadge(this)
         render()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (::bottomNav.isInitialized && bottomNav.visibility == View.VISIBLE) {
-            setNavSelected(R.id.navDial)
-        }
     }
 
     override fun onStop() {
@@ -251,12 +187,7 @@ class MainActivity : AppCompatActivity() {
             val b = Button(this).apply {
                 text = k
                 textSize = 24f
-                setTextColor(android.graphics.Color.rgb(30, 41, 59))
-                backgroundTintList = android.content.res.ColorStateList.valueOf(
-                    android.graphics.Color.rgb(231, 238, 243)
-                )
-                elevation = dp(2).toFloat()
-                setOnClickListener { onKey(k); performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP) }
+                setOnClickListener { onKey(k) }
                 if (plusOnZero && k == "0") setOnLongClickListener { number.append("+"); refreshNumber(); true }
             }
             val lp = GridLayout.LayoutParams(
@@ -349,23 +280,6 @@ class MainActivity : AppCompatActivity() {
         btnSwap.visibility = if (talking >= 2) View.VISIBLE else View.GONE
         btnAddCall.visibility = if (inCall && talking < 2) View.VISIBLE else View.GONE
         btnRecord.text = if (SipManager.isRecording()) "Stop rec" else "Record"
-    }
-
-    private fun setNavSelected(selectedId: Int) {
-        val ids = listOf(R.id.navDial, R.id.navRecents, R.id.navContacts, R.id.navSettings)
-        ids.forEach { id ->
-            val item = findViewById<View>(id) as? android.widget.LinearLayout ?: return@forEach
-            item.background = if (id == selectedId) {
-                androidx.core.content.ContextCompat.getDrawable(this, R.drawable.bg_nav_selected)
-            } else null
-            item.alpha = if (id == selectedId) 1f else 0.88f
-            for (index in 0 until item.childCount) {
-                (item.getChildAt(index) as? TextView)?.setTextColor(
-                    if (id == selectedId) android.graphics.Color.WHITE
-                    else android.graphics.Color.rgb(100, 116, 139)
-                )
-            }
-        }
     }
 
     private fun updateReg() {

@@ -76,6 +76,11 @@ object Prefs {
         get() = sp.getInt("fwdDelay", 20)
         set(v) = sp.edit().putInt("fwdDelay", v).apply()
 
+    /** Time when the Recents screen was last opened (for the missed-call badge). */
+    var historySeen: Long
+        get() = sp.getLong("historySeen", 0L)
+        set(v) = sp.edit().putLong("historySeen", v).apply()
+
     var defaultAccountId: String
         get() = sp.getString("defaultAccountId", "") ?: ""
         set(v) = sp.edit().putString("defaultAccountId", v).apply()

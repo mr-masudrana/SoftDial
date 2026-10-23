@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F5F7FB">
+    android:padding="12dp">
 
     <TextView
         android:id="@+id/tvReg"
@@ -17,11 +17,7 @@
     <LinearLayout
         android:id="@+id/dialerGroup"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingTop="8dp"
+        android:layout_height="match_parent"
         android:orientation="vertical">
 
         <Button
@@ -69,7 +65,7 @@
                 android:layout_width="0dp"
                 android:layout_height="72dp"
                 android:layout_weight="1"
-                android:background="@drawable/bg_call_gradient"
+                android:backgroundTint="#2E7D32"
                 android:text="Call"
                 android:textColor="#FFFFFF"
                 android:textSize="18sp" />
@@ -83,38 +79,13 @@
                 android:textSize="22sp" />
         </LinearLayout>
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:orientation="horizontal">
-
-            <Button
-                android:id="@+id/btnRecents"
-                style="?android:attr/borderlessButtonStyle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:visibility="gone"
-                android:text="Recents" />
-
-            <Button
-                android:id="@+id/btnContacts"
-                style="?android:attr/borderlessButtonStyle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:visibility="gone"
-                android:text="Contacts" />
-        </LinearLayout>
     </LinearLayout>
 
     <!-- In-call -->
     <ScrollView
         android:id="@+id/callGroup"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="match_parent"
         android:fillViewport="true"
         android:visibility="gone">
 
@@ -293,67 +264,4 @@
             </LinearLayout>
         </LinearLayout>
     </ScrollView>
-
-    <LinearLayout
-        android:id="@+id/bottomNav"
-        android:layout_width="match_parent"
-        android:layout_height="72dp"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:background="@drawable/bg_bottom_nav"
-        android:elevation="12dp"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp">
-
-        <LinearLayout
-            android:id="@+id/navDial"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:background="@drawable/bg_nav_selected"
-            android:clickable="true"
-            android:focusable="true"
-            android:contentDescription="Dialer">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="☎" android:textSize="24sp" android:textColor="#FFFFFF"/>
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Dial" android:textSize="11sp" android:textStyle="bold" android:textColor="#FFFFFF"/>
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/navRecents"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:clickable="true" android:focusable="true" android:contentDescription="Recent calls">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="◷" android:textSize="25sp" android:textColor="#64748B"/>
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Recents" android:textSize="11sp" android:textColor="#64748B"/>
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/navContacts"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:clickable="true" android:focusable="true" android:contentDescription="Contacts">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="♙" android:textSize="25sp" android:textColor="#64748B"/>
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Contacts" android:textSize="11sp" android:textColor="#64748B"/>
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/navSettings"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:clickable="true" android:focusable="true" android:contentDescription="Settings">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="⚙" android:textSize="24sp" android:textColor="#64748B"/>
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Settings" android:textSize="11sp" android:textColor="#64748B"/>
-        </LinearLayout>
-    </LinearLayout>
 </LinearLayout>

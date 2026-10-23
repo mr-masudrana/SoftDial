@@ -2,4 +2,6 @@
 <resources>
     <!-- Change this color to restyle the app icon background -->
     <color name="ic_launcher_background">#2E7D32</color>
+    <color name="nav_active">#2E7D32</color>
+    <color name="nav_inactive">#757575</color>
 </resources>

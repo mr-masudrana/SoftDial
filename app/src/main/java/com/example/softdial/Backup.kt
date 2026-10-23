@@ -17,7 +17,6 @@ object Backup {
         try { JSONObject(text).has("enc") } catch (e: Exception) { false }
 
     fun build(passphrase: String): String {
-        require(passphrase.length >= 10) { "Use a backup passphrase of at least 10 characters" }
         val root = JSONObject().put("version", 1).put("app", "softdial")
 
         root.put(
@@ -48,77 +47,54 @@ object Backup {
         root.put("contacts", cons)
 
         val plain = root.toString()
-        return encrypt(plain, passphrase)
+        return if (passphrase.isEmpty()) plain else encrypt(plain, passphrase)
     }
 
     /** @return a short summary message. Throws IllegalArgumentException on bad file / passphrase. */
     fun restore(text: String, passphrase: String): String {
-        if (text.length > 2 * 1024 * 1024) throw IllegalArgumentException("Backup file is too large (2 MB limit)")
         var root = try { JSONObject(text) } catch (e: Exception) {
             throw IllegalArgumentException("Not a valid backup file")
         }
-        if (!root.has("enc")) throw IllegalArgumentException("Unencrypted backups are not accepted. Export a new encrypted backup.")
-        root = try { JSONObject(decrypt(root, passphrase)) } catch (e: Exception) {
-            if (e is IllegalArgumentException) throw e
-            throw IllegalArgumentException("Invalid backup data")
-        }
+        if (root.has("enc")) root = JSONObject(decrypt(root, passphrase))
         if (root.optInt("version", 0) != 1 || root.optString("app") != "softdial") {
             throw IllegalArgumentException("Not a Soft Dial backup")
         }
 
-        val accountsArray = root.optJSONArray("accounts") ?: JSONArray()
-        if (accountsArray.length() > 100) throw IllegalArgumentException("Too many SIP accounts")
-        val validatedAccounts = mutableListOf<Store.SipAccount>()
-        for (i in 0 until accountsArray.length()) {
-            val o = accountsArray.optJSONObject(i) ?: throw IllegalArgumentException("Invalid account entry")
-            val id = o.optString("id").take(128)
-            val label = o.optString("label").take(120)
-            val server = o.optString("server").trim().take(253)
-            val user = o.optString("user").trim().take(256)
-            val pass = o.optString("pass").take(1024)
-            val transport = o.optString("transport", "udp").lowercase()
-            if (id.isBlank() || label.isBlank() || server.isBlank() || user.isBlank() || pass.isEmpty())
-                throw IllegalArgumentException("Account fields are missing")
-            if (transport !in setOf("udp", "tcp", "tls")) throw IllegalArgumentException("Unsupported SIP transport")
-            if (server.any { it.isWhitespace() || it == '/' || it == '@' }) throw IllegalArgumentException("Invalid SIP server")
-            validatedAccounts.add(Store.SipAccount(id, label, server, user, pass, transport))
-        }
-        val contactsArray = root.optJSONArray("contacts") ?: JSONArray()
-        if (contactsArray.length() > 10000) throw IllegalArgumentException("Too many contacts")
-        val validatedContacts = mutableListOf<Store.Contact>()
-        for (i in 0 until contactsArray.length()) {
-            val o = contactsArray.optJSONObject(i) ?: throw IllegalArgumentException("Invalid contact entry")
-            val name = o.optString("name").trim()
-            val number = o.optString("number").trim()
-            if (name.isBlank() || number.isBlank() || name.length > 200 || number.length > 100)
-                throw IllegalArgumentException("Invalid contact fields")
-            validatedContacts.add(Store.Contact(name, number))
-        }
-
         root.optJSONObject("settings")?.let { s ->
-            val theme = s.optString("theme", Prefs.theme)
-            val forwarding = s.optString("fwdMode", Prefs.fwdMode)
-            if (theme !in setOf("system", "light", "dark")) throw IllegalArgumentException("Invalid theme setting")
-            if (forwarding !in setOf("off", "always", "busy", "noanswer")) throw IllegalArgumentException("Invalid forwarding setting")
-            Prefs.theme = theme
+            Prefs.theme = s.optString("theme", Prefs.theme)
             Prefs.autoRecord = s.optBoolean("autoRecord", Prefs.autoRecord)
             Prefs.pushEnabled = s.optBoolean("pushEnabled", Prefs.pushEnabled)
             Prefs.dnd = s.optBoolean("dnd", Prefs.dnd)
             Prefs.dndAllowContacts = s.optBoolean("dndAllowContacts", Prefs.dndAllowContacts)
             Prefs.fwdMode = s.optString("fwdMode", Prefs.fwdMode)
             Prefs.fwdNumber = s.optString("fwdNumber", Prefs.fwdNumber)
-            Prefs.fwdDelay = s.optInt("fwdDelay", Prefs.fwdDelay).coerceIn(5, 120)
+            Prefs.fwdDelay = s.optInt("fwdDelay", Prefs.fwdDelay)
             val def = s.optString("defaultAccountId", "")
             if (def.isNotEmpty()) Prefs.defaultAccountId = def
         }
 
-        validatedAccounts.forEach { Store.saveAccount(it) }
-        val accCount = validatedAccounts.size
-        val savedIds = Store.accounts().map { it.id }.toSet()
-        if (Prefs.defaultAccountId !in savedIds) {
-            Prefs.defaultAccountId = Store.accounts().firstOrNull()?.id ?: ""
+        var accCount = 0
+        root.optJSONArray("accounts")?.let { a ->
+            for (i in 0 until a.length()) {
+                val o = a.getJSONObject(i)
+                Store.saveAccount(
+                    Store.SipAccount(
+                        o.getString("id"), o.getString("label"), o.getString("server"),
+                        o.getString("user"), o.getString("pass"), o.getString("transport")
+                    )
+                )
+                accCount++
+            }
         }
-        val added = Store.addContacts(validatedContacts)
+
+        val contacts = mutableListOf<Store.Contact>()
+        root.optJSONArray("contacts")?.let { a ->
+            for (i in 0 until a.length()) {
+                val o = a.getJSONObject(i)
+                contacts.add(Store.Contact(o.getString("name"), o.getString("number")))
+            }
+        }
+        val added = Store.addContacts(contacts)
 
         return "Restored settings, $accCount account(s), $added new contact(s)"
     }
