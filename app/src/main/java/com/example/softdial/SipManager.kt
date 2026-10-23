@@ -155,7 +155,6 @@ object SipManager {
 
             // Push (FCM): only works if the SIP server/proxy supports push notifications
             if (Prefs.pushEnabled && Prefs.fcmToken.isNotBlank() && Push.available(appContext)) {
-                params.isPushNotificationAllowed = true
                 params.pushNotificationConfig?.let {
                     it.provider = "fcm"
                     it.param = Push.projectId(appContext)
@@ -172,7 +171,7 @@ object SipManager {
     }
 
     private fun coreAccountFor(a: Store.SipAccount): Account? =
-        core?.accounts?.firstOrNull {
+        core?.accountList?.firstOrNull {
             val id = it.params.identityAddress
             id?.username == a.user && id?.domain == a.server
         }
