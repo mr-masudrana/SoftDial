@@ -1,4 +1,4 @@
-name: SoftDial Android CI
+name: Build APK
 
 on:
   push:
@@ -29,14 +29,9 @@ jobs:
           if [ -n "$GS_JSON" ]; then printf '%s' "$GS_JSON" > app/google-services.json; fi
 
       - name: Build debug APK
-        run: gradle --no-daemon assembleDebug --stacktrace
-
-      - name: Build release APK (unsigned)
-        run: gradle --no-daemon assembleRelease --stacktrace
+        run: gradle assembleDebug --stacktrace
 
       - uses: actions/upload-artifact@v4
         with:
-          name: softdial-apks
-          path: |
-            app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/release/*.apk
+          name: softdial-debug
+          path: app/build/outputs/apk/debug/*.apk

@@ -32,7 +32,7 @@ class HistoryActivity : AppCompatActivity() {
                     when (which) {
                         0 -> { SipManager.call(e.number); finish() }
                         1 -> showContactDialog(this, null, Store.nameFor(e.number) ?: "", e.number) { reload() }
-                        2 -> { Store.deleteEntry(e.id); reload() }
+                        2 -> { Store.deleteEntry(e.time); reload() }
                     }
                 }
                 .show()
