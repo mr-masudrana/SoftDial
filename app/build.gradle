@@ -11,8 +11,8 @@ android {
         applicationId "com.example.softdial"
         minSdk 26
         targetSdk 34
-        versionCode 15
-        versionName "15.0"
+        versionCode 20
+        versionName "20.0"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -32,5 +32,6 @@ dependencies {
     implementation 'com.google.firebase:firebase-messaging'
     implementation 'androidx.core:core-ktx:1.13.1'
     implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.core:core-splashscreen:1.0.1'
     implementation 'org.linphone:linphone-sdk-android:5.3.+'
 }

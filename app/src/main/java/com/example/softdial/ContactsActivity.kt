@@ -59,7 +59,7 @@ class ContactsActivity : AppCompatActivity() {
     /** Parallel to the rows on screen: null for section headers / the empty message. */
     private var shown: List<Store.Contact?> = emptyList()
     private var query = ""
-    private val fmt = SimpleDateFormat("d MMM, HH:mm", Locale.getDefault())
+    private val fmt = SimpleDateFormat("d MMM, h:mm a", Locale.getDefault())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

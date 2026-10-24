@@ -18,8 +18,8 @@ class HistoryActivity : AppCompatActivity() {
     /** Parallel to the rows on screen: null for section headers / the empty message. */
     private var shown: List<Store.Entry?> = emptyList()
     private var hasItems = false
-    private val fmtFull = SimpleDateFormat("d MMM, HH:mm", Locale.getDefault())
-    private val fmtTime = SimpleDateFormat("HH:mm", Locale.getDefault())
+    private val fmtFull = SimpleDateFormat("d MMM, h:mm a", Locale.getDefault())
+    private val fmtTime = SimpleDateFormat("h:mm a", Locale.getDefault())
     private val fmtDay = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
 
     override fun onCreate(savedInstanceState: Bundle?) {

@@ -195,5 +195,6 @@ object Store {
 
     fun addEntry(e: Entry) { putHistory((listOf(e) + history()).take(200)) }
     fun deleteEntry(time: Long) { putHistory(history().filter { it.time != time }) }
+    fun deleteEntriesFor(number: String) { putHistory(history().filter { !same(it.number, number) }) }
     fun clearHistory() { putHistory(emptyList()) }
 }

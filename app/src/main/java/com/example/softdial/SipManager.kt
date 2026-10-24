@@ -28,6 +28,7 @@ object SipManager {
         private set
 
     private val regStates = ConcurrentHashMap<String, String>()
+    private val regMessages = ConcurrentHashMap<String, String>()
     private var pendingResume: Call? = null
     private var pendingDial: String? = null
     private val handler = Handler(Looper.getMainLooper())
@@ -57,12 +58,22 @@ object SipManager {
         ) {
             val id = account.params.identityAddress
             regStates[key(id?.username ?: "", id?.domain ?: "")] = state.name
+            regMessages[key(id?.username ?: "", id?.domain ?: "")] = message
+            AppLog.d("REG", "${id?.username}@${id?.domain}: ${state.name} - $message")
             updateSummary()
         }
 
         override fun onCallStateChanged(core: Core, call: Call, state: Call.State, message: String) {
+            AppLog.d("CALL", "${state.name} ${AppLog.mask(call.remoteAddress.username)}")
             if (state == Call.State.IncomingReceived && applyRules(core, call)) {
                 return   // rejected or forwarded automatically: do not ring
+            }
+            if (state == Call.State.IncomingReceived) {
+                if (Prefs.ringtoneUri.isNotEmpty()) Ringer.start(appContext)
+            } else if (state == Call.State.Connected || state == Call.State.StreamsRunning ||
+                state == Call.State.End || state == Call.State.Error || state == Call.State.Released
+            ) {
+                if (incomingCall() == null) Ringer.stop()
             }
             if (state == Call.State.StreamsRunning && Prefs.autoRecord && !call.isRecording) {
                 call.startRecording()
@@ -109,13 +120,26 @@ object SipManager {
         val factory = Factory.instance()
         factory.setDebugMode(true, "SoftDial")
         core = factory.createCore(null, null, appContext).apply {
-            isNativeRingingEnabled = true
-            isVibrationOnIncomingCallEnabled = true
             isEchoCancellationEnabled = true
             addListener(listener)
             start()
         }
+        applyRingSettings()
         register()
+    }
+
+    /**
+     * Default ringtone: Linphone rings by itself (native ringing). Custom ringtone or silent:
+     * Linphone stays quiet and [Ringer] plays the chosen sound.
+     */
+    fun applyRingSettings() {
+        val c = core ?: return
+        val custom = Prefs.ringtoneUri.isNotEmpty()
+        c.isNativeRingingEnabled = !custom
+        c.isVibrationOnIncomingCallEnabled = !custom && Prefs.ringVibrate
+        if (custom) {
+            try { c.ring = null } catch (e: Exception) { AppLog.d("RING", "Cannot clear core ring: ${e.message}") }
+        }
     }
 
     /** Registers every saved account. Call again after accounts or settings change. */
@@ -126,6 +150,8 @@ object SipManager {
         c.clearAllAuthInfo()
         c.clearAccounts()
         regStates.clear()
+        regMessages.clear()
+        AppLog.d("SIP", "Registering ${Store.accounts().size} account(s)")
         c.isPushNotificationEnabled = Prefs.pushEnabled
 
         val selected = Store.selectedAccount()
@@ -169,6 +195,9 @@ object SipManager {
     /** Registration state name of an account: "Ok", "Failed", "Progress", ... or null if unknown. */
     fun regStateOf(a: Store.SipAccount): String? = regStates[key(a.user, a.server)]
 
+    /** Last message from the server for this account (e.g. "Unauthorized"). */
+    fun regMessageOf(a: Store.SipAccount): String = regMessages[key(a.user, a.server)] ?: ""
+
     fun isOnline(a: Store.SipAccount?): Boolean = a != null && regStateOf(a) == "Ok"
 
     private fun coreAccountFor(a: Store.SipAccount): Account? =
@@ -196,6 +225,7 @@ object SipManager {
 
         if (Store.isBlocked(num)) {
             autoNotes[id] = "blocked"
+            AppLog.d("RULE", "Blocked number ${AppLog.mask(num)}")
             call.decline(Reason.Declined)
             return true
         }
@@ -206,6 +236,7 @@ object SipManager {
         }
         if (Prefs.dnd && !(Prefs.dndAllowContacts && Store.nameFor(num) != null)) {
             autoNotes[id] = "dnd"
+            AppLog.d("RULE", "Do Not Disturb rejected ${AppLog.mask(num)}")
             call.decline(Reason.Declined)
             return true
         }
@@ -226,6 +257,7 @@ object SipManager {
         val uri = if (target.contains("@")) "sip:$target" else "sip:$target@$domain"
         val addr = Factory.instance().createAddress(uri) ?: return false
         autoNotes[id] = "fwd"
+        AppLog.d("RULE", "Forwarded call to ${AppLog.mask(target)}")
         call.redirectTo(addr)
         return true
     }

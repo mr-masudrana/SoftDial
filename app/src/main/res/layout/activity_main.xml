@@ -53,13 +53,6 @@
             android:maxLines="1"
             android:textSize="32sp" />
 
-        <TextView
-            android:id="@+id/tvContact"
-            android:layout_width="match_parent"
-            android:layout_height="24dp"
-            android:gravity="center"
-            android:textSize="14sp" />
-
         <GridLayout
             android:id="@+id/pad"
             android:layout_width="match_parent"
@@ -171,6 +164,7 @@
 
             <!-- Avatar with pulsing ring -->
             <FrameLayout
+                android:id="@+id/avatarFrame"
                 android:layout_width="150dp"
                 android:layout_height="150dp"
                 android:layout_marginTop="28dp">
@@ -459,6 +453,15 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:columnCount="3"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/btnHideKeypad"
+                style="@style/Widget.AppCompat.Button.Borderless.Colored"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/btn_hide_keypad"
+                android:textAllCaps="false"
                 android:visibility="gone" />
 
             <View

@@ -1,4 +1,4 @@
-# Soft Dial (starter v15)
+# Soft Dial (starter v20)
 
 SIP dialer using Linphone SDK.
 
@@ -90,3 +90,29 @@ Push to GitHub (`main`) -> Actions -> "Build APK" -> download `softdial-debug`.
 - The Speaker button became an audio-output button: it shows the current output and,
   when Bluetooth or a headset is connected, opens a chooser (earpiece / speaker / bluetooth / headset).
   Bluetooth needs the Bluetooth permission on Android 12+ (asked at start, also in Settings -> Permissions).
+
+## v16
+- Call screen hides the top bar (it comes back in the dialer).
+- In-call Keypad opens in its own compact mode (round controls and avatar make room), with "Hide keypad".
+- Dialer: no name under the typed number; matching numbers are cards.
+
+## v17
+- Top bar account name + Online/Offline only on the home (dialer) page.
+- Long press on dialer suggestion cards (contacts / recent numbers): Copy, Add/Edit contact, Delete, Details.
+  (Recents and Contacts pages already had this.)
+
+## v18
+- Call times use AM/PM (e.g. 3:05 PM).
+- Settings is now a grid of tiles (Account, Theme, Language, Call recording, Call forwarding,
+  Number block, Permissions, Backup & restore, About), each with a live status line.
+  Tap a tile to open that section (SettingsDetailActivity, layouts res/layout/settings_*.xml).
+
+## v19
+- Settings tiles: Ringtone (pick any ringtone / silent, vibration, test), App logs (view, copy, share, clear;
+  numbers partly hidden), Help (FAQ in English / Bangla).
+- Splash screen (core-splashscreen): app icon on the app color. Colors: ic_launcher_background.
+
+## v20
+- First run: SIP login page (server, username, password, advanced: label + transport). Shows
+  Connecting / Connected / the server's error. "Skip for now" hides it (Settings -> Account to add later).
+- Dial pad keys play a DTMF tone and a short vibration (switches in Settings -> Ringtone & sound).

@@ -4,6 +4,8 @@ import android.Manifest
 import android.animation.ObjectAnimator
 import android.animation.PropertyValuesHolder
 import android.os.Handler
+import android.os.SystemClock
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import android.os.Looper
 import android.content.Intent
 import android.os.Build
@@ -48,7 +50,6 @@ class MainActivity : AppCompatActivity() {
     private fun mkSug(name: String, number: String, tag: String) =
         EntryRow(name, "$number  ·  $tag", number)
     private lateinit var tvNumber: TextView
-    private lateinit var tvContact: TextView
     private lateinit var tvCallInfo: TextView
     private lateinit var tvCallNumber: TextView
     private lateinit var tvCallAvatar: TextView
@@ -70,6 +71,9 @@ class MainActivity : AppCompatActivity() {
     private var endedShown = false
     private val endRunnable = Runnable { showDialer() }
     private var pulse: ObjectAnimator? = null
+    private var keypadOpen = false
+    private lateinit var avatarFrame: View
+    private lateinit var btnHideKeypad: View
     private lateinit var tvCallState: TextView
     private lateinit var tvDtmf: TextView
     private lateinit var tvWaiting: TextView
@@ -133,6 +137,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // splash screen: icon on the app color, kept for a short moment
+        val splash = installSplashScreen()
+        val t0 = SystemClock.uptimeMillis()
+        splash.setKeepOnScreenCondition { SystemClock.uptimeMillis() - t0 < 700 }
         super.onCreate(savedInstanceState)
         setContentView(
             BottomNav.wrap(this, layoutInflater.inflate(R.layout.activity_main, null), BottomNav.DIALER)
@@ -140,12 +148,21 @@ class MainActivity : AppCompatActivity() {
         bottomNav = findViewById(R.id.bottomNav)
         SipManager.init(this)
         Push.refreshToken(this)
+        if (Store.accounts().isEmpty() && !Prefs.loginSkipped) {
+            startActivity(Intent(this, LoginActivity::class.java))   // first run: SIP sign-in page
+        }
 
         tvReg = findViewById(R.id.tvReg)
         tvSugTitle = findViewById(R.id.tvSugTitle)
         suggestList = findViewById(R.id.suggestList)
-        sugAdapter = EntryAdapter(this, sugs) { r -> r.number?.let { SipManager.call(it) } }
+        sugAdapter = EntryAdapter(this, sugs, R.layout.item_card) { r -> r.number?.let { SipManager.call(it) } }
         suggestList.adapter = sugAdapter
+        styleCardList(suggestList)
+        suggestList.setOnItemLongClickListener { _, _, pos, _ ->
+            val n = sugs.getOrNull(pos)?.number
+            if (n != null) showSuggestionMenu(n)
+            n != null
+        }
         suggestList.onItemClickListener = AdapterView.OnItemClickListener { _, _, pos, _ ->
             val s = sugs.getOrNull(pos) ?: return@OnItemClickListener
             val num = s.number ?: return@OnItemClickListener
@@ -154,9 +171,10 @@ class MainActivity : AppCompatActivity() {
             refreshNumber()
         }
         tvNumber = findViewById(R.id.tvNumber)
-        tvContact = findViewById(R.id.tvContact)
         tvCallInfo = findViewById(R.id.tvCallInfo)
         tvCallNumber = findViewById(R.id.tvCallNumber)
+        avatarFrame = findViewById(R.id.avatarFrame)
+        btnHideKeypad = findViewById(R.id.btnHideKeypad)
         tvCallAvatar = findViewById(R.id.tvCallAvatar)
         callRing = findViewById(R.id.callRing)
         lblMute = findViewById(R.id.lblMute)
@@ -189,6 +207,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.btnCall).setOnClickListener { SipManager.call(number.toString()) }
         findViewById<View>(R.id.btnBack).apply {
             setOnClickListener {
+                KeyFeedback.buzz(this@MainActivity)
                 if (number.isNotEmpty()) number.deleteCharAt(number.length - 1)
                 refreshNumber()
             }
@@ -225,12 +244,8 @@ class MainActivity : AppCompatActivity() {
             lblRecord.text = getString(if (rec) R.string.btn_stop_rec else R.string.btn_record)
             btnRecord.isActivated = rec
         }
-        btnKeypad.setOnClickListener {
-            val show = dtmfPad.visibility != View.VISIBLE
-            dtmfPad.visibility = if (show) View.VISIBLE else View.GONE
-            tvDtmf.visibility = if (show) View.VISIBLE else View.GONE
-            btnKeypad.isActivated = show
-        }
+        btnKeypad.setOnClickListener { keypadOpen = true; render() }
+        btnHideKeypad.setOnClickListener { keypadOpen = false; render() }
         btnHold.setOnClickListener { SipManager.toggleHold() }
         btnSwap.setOnClickListener { SipManager.swap() }
         btnAddCall.setOnClickListener { showAddCallDialog() }
@@ -272,14 +287,20 @@ class MainActivity : AppCompatActivity() {
         SipManager.removeCallListener(callCb)
         stopPulse()
         uiHandler.removeCallbacks(ticker)
+        KeyFeedback.release()
         super.onStop()
     }
 
     // ---- dialpad ----
 
     private fun buildPad() {
-        fillPad(findViewById(R.id.pad), 60, 26f, true) { number.append(it); refreshNumber() }
-        fillPad(dtmfPad, 52, 20f, false) {
+        fillPad(findViewById(R.id.pad), 60, 26f, true) {
+            KeyFeedback.press(this, it)
+            number.append(it)
+            refreshNumber()
+        }
+        fillPad(dtmfPad, 50, 20f, false) {
+            KeyFeedback.press(this, it)
             SipManager.sendDtmf(it[0])
             tvDtmf.append(it)
         }
@@ -318,7 +339,7 @@ class MainActivity : AppCompatActivity() {
                 stateListAnimator = null
                 background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_key)
                 setOnClickListener { onKey(k) }
-                if (plusOnZero && k == "0") setOnLongClickListener { number.append("+"); refreshNumber(); true }
+                if (plusOnZero && k == "0") setOnLongClickListener { KeyFeedback.buzz(this@MainActivity); number.append("+"); refreshNumber(); true }
             }
             val lp = GridLayout.LayoutParams(
                 GridLayout.spec(GridLayout.UNDEFINED),
@@ -335,7 +356,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshNumber() {
         tvNumber.text = number.toString()
-        tvContact.text = Store.nameFor(number.toString()) ?: ""
         refreshSuggestions()
     }
 
@@ -355,6 +375,46 @@ class MainActivity : AppCompatActivity() {
     private fun nameMatchesKeys(name: String, keys: String): Boolean {
         if (keys.length < 2 || !keys.all { it.isDigit() }) return false
         return t9(name).split(" ").any { it.startsWith(keys) }
+    }
+
+    /** Long press on a card: copy, add/edit contact, delete, details. */
+    private fun showSuggestionMenu(n: String) {
+        val contact = Store.contactFor(n)
+        val labels = arrayOf(
+            getString(R.string.menu_copy_number),
+            getString(if (contact != null) R.string.menu_edit_contact else R.string.menu_add_contact),
+            getString(R.string.delete),
+            getString(R.string.details)
+        )
+        AlertDialog.Builder(this)
+            .setTitle(contact?.name ?: n)
+            .setItems(labels) { _, which ->
+                when (which) {
+                    0 -> copyNumber(this, n)
+                    1 -> if (contact != null) {
+                        showContactDialog(this, contact.number, contact.name, contact.number) { refreshSuggestions() }
+                    } else {
+                        showContactDialog(this, null, "", n) { refreshSuggestions() }
+                    }
+                    2 -> if (contact != null) {
+                        confirmDeleteContact(contact)
+                    } else {
+                        Store.deleteEntriesFor(n)
+                        refreshSuggestions()
+                    }
+                    3 -> showNumberDetails(this, n)
+                }
+            }
+            .show()
+    }
+
+    private fun confirmDeleteContact(c: Store.Contact) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.del_contact_title)
+            .setMessage(c.name + "\n" + c.number)
+            .setPositiveButton(R.string.delete) { _, _ -> Store.deleteContact(c.number); refreshSuggestions() }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     /** Middle area: recent calls when empty, matching contacts / numbers while typing. */
@@ -404,6 +464,10 @@ class MainActivity : AppCompatActivity() {
         dialerGroup.visibility = View.VISIBLE
         callGroup.visibility = View.GONE
         bottomNav.visibility = View.VISIBLE
+        supportActionBar?.show()
+        keypadOpen = false
+        avatarFrame.visibility = View.VISIBLE
+        btnHideKeypad.visibility = View.GONE
         lblMute.text = getString(R.string.btn_mute)
         lblSpeaker.text = getString(R.string.btn_speaker)
         lblRecord.text = getString(R.string.btn_record)
@@ -465,6 +529,10 @@ class MainActivity : AppCompatActivity() {
         dialerGroup.visibility = View.GONE
         callGroup.visibility = View.VISIBLE
         bottomNav.visibility = View.GONE
+        supportActionBar?.hide()
+        keypadOpen = false
+        avatarFrame.visibility = View.VISIBLE
+        btnHideKeypad.visibility = View.GONE
 
         tvCallAvatar.text = initialOf(lastName)
         tvCallInfo.text = lastName
@@ -582,6 +650,7 @@ class MainActivity : AppCompatActivity() {
         dialerGroup.visibility = View.GONE
         callGroup.visibility = View.VISIBLE
         bottomNav.visibility = View.GONE
+        supportActionBar?.hide()
 
         val st = main.state
         val mainIncoming = SipManager.isIncomingState(st)
@@ -604,7 +673,14 @@ class MainActivity : AppCompatActivity() {
         }
 
         val inCall = st in timedStates
-        controls.visibility = if (inCall) View.VISIBLE else View.GONE
+        if (!inCall) keypadOpen = false
+        controls.visibility = if (inCall && !keypadOpen) View.VISIBLE else View.GONE
+        // keypad mode: replaces the round controls, avatar shrinks away so everything fits
+        avatarFrame.visibility = if (keypadOpen) View.GONE else View.VISIBLE
+        if (keypadOpen) tvCallNumber.visibility = View.GONE
+        dtmfPad.visibility = if (keypadOpen) View.VISIBLE else View.GONE
+        tvDtmf.visibility = if (keypadOpen) View.VISIBLE else View.GONE
+        btnHideKeypad.visibility = if (keypadOpen) View.VISIBLE else View.GONE
 
         val held = st == Call.State.Paused || st == Call.State.Pausing
         lblHold.text = getString(if (held) R.string.btn_resume else R.string.btn_hold)

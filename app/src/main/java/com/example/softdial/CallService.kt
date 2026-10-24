@@ -27,7 +27,7 @@ class CallService : Service() {
         const val ACTION_DECLINE = "softdial.DECLINE"
         const val ACTION_HANGUP = "softdial.HANGUP"
         private const val CH_SERVICE = "service"
-        private const val CH_INCOMING = "incoming"
+        private const val CH_INCOMING = "incoming_silent"
         private const val CH_MISSED = "missed"
         private const val ID_ONGOING = 1
         private const val ID_INCOMING = 2
@@ -121,6 +121,7 @@ class CallService : Service() {
         )
         nm.createNotificationChannel(
             NotificationChannel(CH_INCOMING, getString(R.string.ch_incoming), NotificationManager.IMPORTANCE_HIGH)
+                .apply { setSound(null, null); enableVibration(false) }
         )
         nm.createNotificationChannel(
             NotificationChannel(CH_MISSED, getString(R.string.ch_missed), NotificationManager.IMPORTANCE_DEFAULT)

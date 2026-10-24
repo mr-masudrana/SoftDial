@@ -102,6 +102,28 @@ object Prefs {
         get() = sp.getBoolean("contactsImported", false)
         set(v) = sp.edit().putBoolean("contactsImported", v).apply()
 
+    /** "" = phone default ringtone, "silent" = no sound, otherwise a content URI. */
+    var ringtoneUri: String
+        get() = sp.getString("ringtoneUri", "") ?: ""
+        set(v) = sp.edit().putString("ringtoneUri", v).apply()
+
+    var ringVibrate: Boolean
+        get() = sp.getBoolean("ringVibrate", true)
+        set(v) = sp.edit().putBoolean("ringVibrate", v).apply()
+
+    /** True once the user pressed "Skip" on the first-run login screen. */
+    var loginSkipped: Boolean
+        get() = sp.getBoolean("loginSkipped", false)
+        set(v) = sp.edit().putBoolean("loginSkipped", v).apply()
+
+    var keySound: Boolean
+        get() = sp.getBoolean("keySound", true)
+        set(v) = sp.edit().putBoolean("keySound", v).apply()
+
+    var keyVibrate: Boolean
+        get() = sp.getBoolean("keyVibrate", true)
+        set(v) = sp.edit().putBoolean("keyVibrate", v).apply()
+
     var defaultAccountId: String
         get() = sp.getString("defaultAccountId", "") ?: ""
         set(v) = sp.edit().putString("defaultAccountId", v).apply()

@@ -16,6 +16,7 @@ object Push {
         FirebaseMessaging.getInstance().token.addOnSuccessListener { t ->
             if (t != Prefs.fcmToken) {
                 Prefs.fcmToken = t
+                AppLog.d("PUSH", "FCM token updated")
                 if (Prefs.hasAccount()) SipManager.register()
             }
         }

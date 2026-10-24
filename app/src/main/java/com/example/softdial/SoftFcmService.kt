@@ -14,6 +14,7 @@ class SoftFcmService : FirebaseMessagingService() {
 
     /** A push from the SIP server wakes the app: start the service so SIP can register and ring. */
     override fun onMessageReceived(message: RemoteMessage) {
+        AppLog.d("PUSH", "Push message received")
         SipManager.init(this)
         CallService.start(this)
     }

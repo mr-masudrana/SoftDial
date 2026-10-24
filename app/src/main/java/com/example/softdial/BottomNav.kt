@@ -36,7 +36,7 @@ object BottomNav {
 
     /** Returns a view with [content] on top and the bar at the bottom. */
     fun wrap(act: AppCompatActivity, content: View, selected: Int): View {
-        AccountBar.attach(act)
+        if (selected == DIALER) AccountBar.attach(act)   // name + online/offline only on the home page
         val d = act.resources.displayMetrics.density
         val match = ViewGroup.LayoutParams.MATCH_PARENT
         val wrapC = ViewGroup.LayoutParams.WRAP_CONTENT
