@@ -25,17 +25,18 @@ object BottomNav {
     const val CONTACTS = 2
     const val SETTINGS = 3
 
-    private class Tab(val label: String, val icon: Int, val filled: Int, val target: Class<*>)
+    private class Tab(val label: Int, val icon: Int, val filled: Int, val target: Class<*>)
 
     private val tabs = listOf(
-        Tab("Dialer", R.drawable.ic_nav_dialer, R.drawable.ic_nav_dialer_filled, MainActivity::class.java),
-        Tab("Recents", R.drawable.ic_nav_recents, R.drawable.ic_nav_recents_filled, HistoryActivity::class.java),
-        Tab("Contacts", R.drawable.ic_nav_contacts, R.drawable.ic_nav_contacts_filled, ContactsActivity::class.java),
-        Tab("Settings", R.drawable.ic_nav_settings, R.drawable.ic_nav_settings_filled, SettingsActivity::class.java)
+        Tab(R.string.nav_dialer, R.drawable.ic_nav_dialer, R.drawable.ic_nav_dialer_filled, MainActivity::class.java),
+        Tab(R.string.nav_recents, R.drawable.ic_nav_recents, R.drawable.ic_nav_recents_filled, HistoryActivity::class.java),
+        Tab(R.string.nav_contacts, R.drawable.ic_nav_contacts, R.drawable.ic_nav_contacts_filled, ContactsActivity::class.java),
+        Tab(R.string.nav_settings, R.drawable.ic_nav_settings, R.drawable.ic_nav_settings_filled, SettingsActivity::class.java)
     )
 
     /** Returns a view with [content] on top and the bar at the bottom. */
     fun wrap(act: AppCompatActivity, content: View, selected: Int): View {
+        AccountBar.attach(act)
         val d = act.resources.displayMetrics.density
         val match = ViewGroup.LayoutParams.MATCH_PARENT
         val wrapC = ViewGroup.LayoutParams.WRAP_CONTENT
@@ -61,7 +62,7 @@ object BottomNav {
             val item = LinearLayout(act).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
-                contentDescription = t.label
+                contentDescription = act.getString(t.label)
                 setBackgroundResource(ripple.resourceId)
                 setOnClickListener { if (!active) go(act, i) }
             }
@@ -96,7 +97,7 @@ object BottomNav {
             item.addView(frame, LinearLayout.LayoutParams((44 * d).toInt(), (26 * d).toInt()))
 
             val label = TextView(act).apply {
-                text = t.label
+                text = act.getString(t.label)
                 textSize = 11f
                 setTextColor(color)
                 if (active) setTypeface(typeface, Typeface.BOLD)

@@ -1,4 +1,4 @@
-# Soft Dial (starter v11)
+# Soft Dial (starter v15)
 
 SIP dialer using Linphone SDK.
 
@@ -66,3 +66,27 @@ Push to GitHub (`main`) -> Actions -> "Build APK" -> download `softdial-debug`.
 - Round keypad keys with letters (ABC...). Round green call button, custom backspace icon.
 - Call button on the right of every row in Recents, Contacts and dialer suggestions.
   (Tapping the row itself still opens options / fills the number.)
+
+## v12
+- Full Bangla translation of all screens (Settings -> Language). Strings live in
+  res/values/strings.xml (English) and res/values-bn/strings.xml (Bangla).
+- Contacts and Recents are cards with an avatar, a call button and ripple.
+- Tap a row = Details. Long press = Copy number / Add or Edit contact / Block (Recents) / Delete / Details.
+
+## v13
+- Contacts: star = favorite (tap the star or long press). Favorites are listed first under "Favorites".
+- Recents: grouped by Today / Yesterday / date.
+- Top bar (right side): default SIP account name (or user id) and Online / Offline on two lines.
+- Accounts screen and Settings -> Account show registration: Connected / Failed / Connecting.
+
+## v14
+- Modern call screen: big avatar with pulsing ring while ringing, name + number, live call timer,
+  round control buttons (Mute, Keypad, Speaker, Record, Hold, Add call / Swap) that light up when on,
+  round red End button, green Answer button for incoming calls, call-waiting banner on top.
+
+## v15
+- After a call ends the call screen stays for ~2 seconds with "Call ended - 02:34"
+  (or "Call failed"), then returns to the dialer. Unanswered incoming calls skip it.
+- The Speaker button became an audio-output button: it shows the current output and,
+  when Bluetooth or a headset is connected, opens a chooser (earpiece / speaker / bluetooth / headset).
+  Bluetooth needs the Bluetooth permission on Android 12+ (asked at start, also in Settings -> Permissions).

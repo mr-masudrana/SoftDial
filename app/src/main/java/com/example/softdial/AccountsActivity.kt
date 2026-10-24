@@ -20,15 +20,15 @@ fun showAccountDialog(ctx: Context, existing: Store.SipAccount?, onDone: () -> U
         orientation = LinearLayout.VERTICAL
         setPadding(pad, pad / 2, pad, 0)
     }
-    val etLabel = EditText(ctx).apply { hint = "Label (e.g. Work)"; setText(existing?.label ?: "") }
+    val etLabel = EditText(ctx).apply { hint = ctx.getString(R.string.acc_label_hint); setText(existing?.label ?: "") }
     val etServer = EditText(ctx).apply {
-        hint = "Server / Domain"
+        hint = ctx.getString(R.string.acc_server_hint)
         inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
         setText(existing?.server ?: "")
     }
-    val etUser = EditText(ctx).apply { hint = "Username"; setText(existing?.user ?: "") }
+    val etUser = EditText(ctx).apply { hint = ctx.getString(R.string.acc_user_hint); setText(existing?.user ?: "") }
     val etPass = EditText(ctx).apply {
-        hint = "Password"
+        hint = ctx.getString(R.string.acc_pass_hint)
         inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         setText(existing?.pass ?: "")
     }
@@ -41,9 +41,9 @@ fun showAccountDialog(ctx: Context, existing: Store.SipAccount?, onDone: () -> U
     listOf(etLabel, etServer, etUser, etPass, spinner).forEach { box.addView(it) }
 
     AlertDialog.Builder(ctx)
-        .setTitle(if (existing == null) "Add SIP account" else "Edit SIP account")
+        .setTitle(ctx.getString(if (existing == null) R.string.acc_add_title else R.string.acc_edit_title))
         .setView(ScrollView(ctx).apply { addView(box) })
-        .setPositiveButton("Save") { _, _ ->
+        .setPositiveButton(ctx.getString(R.string.save)) { _, _ ->
             val server = etServer.text.toString().trim()
             val user = etUser.text.toString().trim()
             if (server.isNotEmpty() && user.isNotEmpty()) {
@@ -58,7 +58,7 @@ fun showAccountDialog(ctx: Context, existing: Store.SipAccount?, onDone: () -> U
                 onDone()
             }
         }
-        .setNegativeButton("Cancel", null)
+        .setNegativeButton(ctx.getString(R.string.cancel), null)
         .show()
 }
 
@@ -69,7 +69,7 @@ class AccountsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        title = "SIP accounts"
+        title = getString(R.string.acc_title)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         list = ListView(this)
         setContentView(list)
@@ -78,7 +78,7 @@ class AccountsActivity : AppCompatActivity() {
             val a = items.getOrNull(pos) ?: return@setOnItemClickListener
             AlertDialog.Builder(this)
                 .setTitle(a.label)
-                .setItems(arrayOf("Use for outgoing calls", "Edit", "Delete")) { _, which ->
+                .setItems(arrayOf(getString(R.string.acc_use_outgoing), getString(R.string.edit), getString(R.string.delete))) { _, which ->
                     when (which) {
                         0 -> { Prefs.defaultAccountId = a.id; SipManager.applySelected(); reload() }
                         1 -> showAccountDialog(this, a) { changed() }
@@ -90,6 +90,19 @@ class AccountsActivity : AppCompatActivity() {
         reload()
     }
 
+    private val regCb: (String) -> Unit = { _ -> runOnUiThread { reload() } }
+
+    override fun onStart() {
+        super.onStart()
+        SipManager.addRegListener(regCb)
+        reload()
+    }
+
+    override fun onStop() {
+        SipManager.removeRegListener(regCb)
+        super.onStop()
+    }
+
     private fun changed() {
         SipManager.register()
         CallService.start(this)
@@ -99,9 +112,9 @@ class AccountsActivity : AppCompatActivity() {
     private fun reload() {
         items = Store.accounts()
         val sel = Store.selectedAccount()?.id
-        val rows = if (items.isEmpty()) listOf("No accounts yet. Tap Add.")
+        val rows = if (items.isEmpty()) listOf(getString(R.string.acc_none))
         else items.map {
-            "${it.label}${if (it.id == sel) "  ★ default" else ""}\n${it.user}@${it.server} · ${it.transport.uppercase()}"
+            "${it.label}${if (it.id == sel) ("  " + getString(R.string.acc_default_mark)) else ""}\n${it.user}@${it.server} · ${it.transport.uppercase()}\n● ${regText(this, it)}"
         }
         list.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, rows)
     }

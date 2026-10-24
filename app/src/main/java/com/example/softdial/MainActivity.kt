@@ -1,6 +1,10 @@
 package com.example.softdial
 
 import android.Manifest
+import android.animation.ObjectAnimator
+import android.animation.PropertyValuesHolder
+import android.os.Handler
+import android.os.Looper
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -16,6 +20,7 @@ import androidx.core.content.ContextCompat
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.ListView
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -45,6 +50,26 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvNumber: TextView
     private lateinit var tvContact: TextView
     private lateinit var tvCallInfo: TextView
+    private lateinit var tvCallNumber: TextView
+    private lateinit var tvCallAvatar: TextView
+    private lateinit var callRing: View
+    private lateinit var lblMute: TextView
+    private lateinit var lblSpeaker: TextView
+    private lateinit var lblRecord: TextView
+    private lateinit var lblHold: TextView
+    private lateinit var cellAddCall: View
+    private lateinit var cellSwap: View
+    private val uiHandler = Handler(Looper.getMainLooper())
+
+    // "call ended" screen shown for a moment after the last call finishes
+    private var lastName = ""
+    private var lastNum = ""
+    private var endedDuration = 0
+    private var endedFailed = false
+    private var endedSkip = false
+    private var endedShown = false
+    private val endRunnable = Runnable { showDialer() }
+    private var pulse: ObjectAnimator? = null
     private lateinit var tvCallState: TextView
     private lateinit var tvDtmf: TextView
     private lateinit var tvWaiting: TextView
@@ -54,14 +79,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var waitingGroup: View
     private lateinit var dtmfPad: GridLayout
     private lateinit var btnFrom: Button
-    private lateinit var btnAnswer: Button
-    private lateinit var btnMute: Button
-    private lateinit var btnSpeaker: Button
-    private lateinit var btnRecord: Button
-    private lateinit var btnKeypad: Button
-    private lateinit var btnHold: Button
-    private lateinit var btnSwap: Button
-    private lateinit var btnAddCall: Button
+    private lateinit var btnAnswer: View
+    private lateinit var btnHangup: View
+    private lateinit var btnMute: View
+    private lateinit var btnSpeaker: ImageButton
+    private lateinit var btnRecord: View
+    private lateinit var btnKeypad: View
+    private lateinit var btnHold: View
+    private lateinit var btnSwap: View
+    private lateinit var btnAddCall: View
 
     private val number = StringBuilder()
 
@@ -78,14 +104,33 @@ class MainActivity : AppCompatActivity() {
         Thread {
             val n = PhoneBook.importAll(this)
             runOnUiThread {
-                Toast.makeText(this, "Imported $n contacts", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.imported_contacts, n), Toast.LENGTH_SHORT).show()
                 refreshSuggestions()
             }
         }.start()
     }
 
     private val regCb: (String) -> Unit = { _ -> runOnUiThread { updateReg() } }
-    private val callCb: (Call.State, Call) -> Unit = { _, _ -> runOnUiThread { render(); BottomNav.refreshBadge(this) } }
+    private val callCb: (Call.State, Call) -> Unit = { state, call ->
+        runOnUiThread {
+            if (state == Call.State.End || state == Call.State.Error) captureEnd(state, call)
+            render()
+            BottomNav.refreshBadge(this)
+        }
+    }
+
+    /** Remembers who the call was with and how long it lasted, for the "call ended" screen. */
+    private fun captureEnd(state: Call.State, call: Call) {
+        try {
+            val num = call.remoteAddress.username ?: call.remoteAddress.asStringUriOnly()
+            val log = call.callLog
+            endedDuration = call.duration
+            endedFailed = state == Call.State.Error
+            endedSkip = log != null && log.dir == Call.Dir.Incoming && endedDuration == 0
+            lastNum = num
+            lastName = Store.nameFor(num) ?: num
+        } catch (e: Exception) { /* keep previous values */ }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -111,6 +156,15 @@ class MainActivity : AppCompatActivity() {
         tvNumber = findViewById(R.id.tvNumber)
         tvContact = findViewById(R.id.tvContact)
         tvCallInfo = findViewById(R.id.tvCallInfo)
+        tvCallNumber = findViewById(R.id.tvCallNumber)
+        tvCallAvatar = findViewById(R.id.tvCallAvatar)
+        callRing = findViewById(R.id.callRing)
+        lblMute = findViewById(R.id.lblMute)
+        lblSpeaker = findViewById(R.id.lblSpeaker)
+        lblRecord = findViewById(R.id.lblRecord)
+        lblHold = findViewById(R.id.lblHold)
+        cellAddCall = findViewById(R.id.cellAddCall)
+        cellSwap = findViewById(R.id.cellSwap)
         tvCallState = findViewById(R.id.tvCallState)
         tvDtmf = findViewById(R.id.tvDtmf)
         tvWaiting = findViewById(R.id.tvWaiting)
@@ -121,6 +175,7 @@ class MainActivity : AppCompatActivity() {
         dtmfPad = findViewById(R.id.dtmfPad)
         btnFrom = findViewById(R.id.btnFrom)
         btnAnswer = findViewById(R.id.btnAnswer)
+        btnHangup = findViewById(R.id.btnHangup)
         btnMute = findViewById(R.id.btnMute)
         btnSpeaker = findViewById(R.id.btnSpeaker)
         btnRecord = findViewById(R.id.btnRecord)
@@ -142,7 +197,7 @@ class MainActivity : AppCompatActivity() {
         btnFrom.setOnClickListener {
             val accs = Store.accounts()
             AlertDialog.Builder(this)
-                .setTitle("Call with")
+                .setTitle(getString(R.string.call_with_title))
                 .setItems(accs.map { it.label }.toTypedArray()) { _, i ->
                     Prefs.defaultAccountId = accs[i].id
                     SipManager.applySelected()
@@ -154,20 +209,27 @@ class MainActivity : AppCompatActivity() {
         btnAnswer.setOnClickListener { SipManager.answer() }
         findViewById<Button>(R.id.btnAnswerWaiting).setOnClickListener { SipManager.answer() }
         findViewById<Button>(R.id.btnDeclineWaiting).setOnClickListener { SipManager.declineIncoming() }
-        findViewById<Button>(R.id.btnHangup).setOnClickListener { SipManager.hangUp() }
+        btnHangup.setOnClickListener { SipManager.hangUp() }
         btnMute.setOnClickListener {
-            btnMute.text = if (SipManager.toggleMute()) "Unmute" else "Mute"
+            val muted = SipManager.toggleMute()
+            lblMute.text = getString(if (muted) R.string.btn_unmute else R.string.btn_mute)
+            btnMute.isActivated = muted
         }
         btnSpeaker.setOnClickListener {
-            btnSpeaker.text = if (SipManager.toggleSpeaker()) "Earpiece" else "Speaker"
+            val routes = SipManager.audioRoutes()
+            if (routes.size <= 2) SipManager.toggleSpeaker() else showRouteDialog(routes)
+            uiHandler.postDelayed({ updateRoute() }, 400)
         }
         btnRecord.setOnClickListener {
-            btnRecord.text = if (SipManager.toggleRecording()) "Stop rec" else "Record"
+            val rec = SipManager.toggleRecording()
+            lblRecord.text = getString(if (rec) R.string.btn_stop_rec else R.string.btn_record)
+            btnRecord.isActivated = rec
         }
         btnKeypad.setOnClickListener {
             val show = dtmfPad.visibility != View.VISIBLE
             dtmfPad.visibility = if (show) View.VISIBLE else View.GONE
             tvDtmf.visibility = if (show) View.VISIBLE else View.GONE
+            btnKeypad.isActivated = show
         }
         btnHold.setOnClickListener { SipManager.toggleHold() }
         btnSwap.setOnClickListener { SipManager.swap() }
@@ -175,6 +237,7 @@ class MainActivity : AppCompatActivity() {
 
         val perms = mutableListOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.READ_CONTACTS)
         if (Build.VERSION.SDK_INT >= 33) perms.add(Manifest.permission.POST_NOTIFICATIONS)
+        if (Build.VERSION.SDK_INT >= 31) perms.add(Manifest.permission.BLUETOOTH_CONNECT)
         permLauncher.launch(perms.toTypedArray())
 
         handleIntent(intent)
@@ -207,6 +270,8 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         SipManager.removeRegListener(regCb)
         SipManager.removeCallListener(callCb)
+        stopPulse()
+        uiHandler.removeCallbacks(ticker)
         super.onStop()
     }
 
@@ -300,11 +365,11 @@ class MainActivity : AppCompatActivity() {
             val seen = mutableSetOf<String>()
             for (e in Store.history()) {
                 if (!seen.add(digitsOf(e.number))) continue
-                val tag = if (e.missed) "missed" else if (e.incoming) "incoming" else "outgoing"
+                val tag = getString(if (e.missed) R.string.tag_missed else if (e.incoming) R.string.tag_incoming else R.string.tag_outgoing)
                 sugs.add(mkSug(Store.nameFor(e.number) ?: e.number, e.number, tag))
                 if (sugs.size >= 8) break
             }
-            tvSugTitle.text = if (sugs.isEmpty()) "No recent calls" else "Recent"
+            tvSugTitle.text = getString(if (sugs.isEmpty()) R.string.sug_none_recent else R.string.sug_recent)
         } else {
             val digits = digitsOf(q)
             val used = mutableSetOf<String>()
@@ -312,15 +377,15 @@ class MainActivity : AppCompatActivity() {
                 for (c in Store.contacts()) {
                     val nd = digitsOf(c.number)
                     if (nd.contains(digits) || nameMatchesKeys(c.name, digits)) {
-                        sugs.add(mkSug(c.name, c.number, "contact")); used.add(nd)
+                        sugs.add(mkSug(c.name, c.number, getString(R.string.tag_contact))); used.add(nd)
                     }
                 }
                 for (e in Store.history()) {
                     val nd = digitsOf(e.number)
-                    if (nd.contains(digits) && used.add(nd)) sugs.add(mkSug(e.number, e.number, "recent"))
+                    if (nd.contains(digits) && used.add(nd)) sugs.add(mkSug(e.number, e.number, getString(R.string.tag_recent)))
                 }
             }
-            tvSugTitle.text = if (sugs.isEmpty()) "No matches" else "Matches"
+            tvSugTitle.text = getString(if (sugs.isEmpty()) R.string.sug_none else R.string.sug_matches)
         }
         sugAdapter.notifyDataSetChanged()
     }
@@ -328,7 +393,7 @@ class MainActivity : AppCompatActivity() {
     private fun refreshFrom() {
         val accs = Store.accounts()
         btnFrom.visibility = if (accs.size > 1) View.VISIBLE else View.GONE
-        btnFrom.text = "Call with: ${Store.selectedAccount()?.label ?: ""} ▾"
+        btnFrom.text = getString(R.string.call_with_btn, Store.selectedAccount()?.label ?: "")
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
@@ -339,9 +404,19 @@ class MainActivity : AppCompatActivity() {
         dialerGroup.visibility = View.VISIBLE
         callGroup.visibility = View.GONE
         bottomNav.visibility = View.VISIBLE
-        btnMute.text = "Mute"
-        btnSpeaker.text = "Speaker"
-        btnRecord.text = "Record"
+        lblMute.text = getString(R.string.btn_mute)
+        lblSpeaker.text = getString(R.string.btn_speaker)
+        lblRecord.text = getString(R.string.btn_record)
+        btnMute.isActivated = false
+        btnSpeaker.isActivated = false
+        btnRecord.isActivated = false
+        btnKeypad.isActivated = false
+        btnHold.isActivated = false
+        stopPulse()
+        uiHandler.removeCallbacks(ticker)
+        uiHandler.removeCallbacks(endRunnable)
+        endedShown = false
+        btnHangup.visibility = View.VISIBLE
         dtmfPad.visibility = View.GONE
         tvDtmf.visibility = View.GONE
         tvDtmf.text = ""
@@ -353,21 +428,156 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun label(s: Call.State): String = when (s) {
-        Call.State.OutgoingInit, Call.State.OutgoingProgress -> "Calling…"
-        Call.State.OutgoingRinging, Call.State.OutgoingEarlyMedia -> "Ringing…"
-        Call.State.IncomingReceived, Call.State.IncomingEarlyMedia -> "Incoming call"
-        Call.State.Connected, Call.State.StreamsRunning -> "Connected"
-        Call.State.Pausing, Call.State.Paused -> "On hold"
-        Call.State.PausedByRemote -> "Held by other side"
-        Call.State.Resuming -> "Resuming…"
+        Call.State.OutgoingInit, Call.State.OutgoingProgress -> getString(R.string.state_calling)
+        Call.State.OutgoingRinging, Call.State.OutgoingEarlyMedia -> getString(R.string.state_ringing)
+        Call.State.IncomingReceived, Call.State.IncomingEarlyMedia -> getString(R.string.state_incoming)
+        Call.State.Connected, Call.State.StreamsRunning -> getString(R.string.state_connected)
+        Call.State.Pausing, Call.State.Paused -> getString(R.string.state_hold)
+        Call.State.PausedByRemote -> getString(R.string.state_held_remote)
+        Call.State.Resuming -> getString(R.string.state_resuming)
         else -> s.name
+    }
+
+    /** Draws the call screen from the current list of calls (handles call waiting too). */
+    private val timedStates = setOf(
+        Call.State.Connected, Call.State.StreamsRunning, Call.State.Pausing, Call.State.Paused,
+        Call.State.PausedByRemote, Call.State.Resuming, Call.State.Updating, Call.State.UpdatedByRemote
+    )
+
+    private val ringingStates = setOf(
+        Call.State.OutgoingInit, Call.State.OutgoingProgress, Call.State.OutgoingRinging,
+        Call.State.OutgoingEarlyMedia, Call.State.IncomingReceived, Call.State.IncomingEarlyMedia
+    )
+
+    /** "Ringing…", or the running timer once connected ("On hold · 01:20"). */
+    private fun stateText(call: Call): String {
+        val st = call.state
+        return when {
+            st == Call.State.Connected || st == Call.State.StreamsRunning -> fmtTimer(call.duration)
+            st in timedStates -> label(st) + " · " + fmtTimer(call.duration)
+            else -> label(st)
+        }
+    }
+
+    /** Brief "Call ended · 02:34" screen, then back to the dialer. */
+    private fun showEnded() {
+        endedShown = true
+        dialerGroup.visibility = View.GONE
+        callGroup.visibility = View.VISIBLE
+        bottomNav.visibility = View.GONE
+
+        tvCallAvatar.text = initialOf(lastName)
+        tvCallInfo.text = lastName
+        tvCallNumber.text = lastNum
+        tvCallNumber.visibility = if (lastName == lastNum) View.GONE else View.VISIBLE
+        tvCallState.text = when {
+            endedFailed -> getString(R.string.state_failed)
+            endedDuration > 0 -> getString(R.string.state_ended) + " · " + fmtTimer(endedDuration)
+            else -> getString(R.string.state_ended)
+        }
+        tvCallState.setTextColor(
+            ContextCompat.getColor(this, if (endedFailed) R.color.perm_bad else R.color.nav_inactive)
+        )
+        controls.visibility = View.GONE
+        waitingGroup.visibility = View.GONE
+        btnAnswer.visibility = View.GONE
+        btnHangup.visibility = View.INVISIBLE
+        dtmfPad.visibility = View.GONE
+        tvDtmf.visibility = View.GONE
+        stopPulse()
+        uiHandler.removeCallbacks(ticker)
+        uiHandler.removeCallbacks(endRunnable)
+        uiHandler.postDelayed(endRunnable, 2200)
+    }
+
+    private fun routeLabel(t: String): Int = when (t) {
+        "Speaker" -> R.string.btn_speaker
+        "Bluetooth", "BluetoothA2DP" -> R.string.route_bluetooth
+        "Headset", "Headphones" -> R.string.route_headset
+        else -> R.string.btn_earpiece
+    }
+
+    /** Button under the call shows the current audio output (earpiece / speaker / bluetooth / headset). */
+    private fun updateRoute() {
+        val t = SipManager.currentRoute()?.type?.name ?: "Earpiece"
+        lblSpeaker.text = getString(routeLabel(t))
+        btnSpeaker.setImageResource(
+            when (t) {
+                "Speaker" -> R.drawable.ic_ctl_speaker
+                "Bluetooth", "BluetoothA2DP" -> R.drawable.ic_ctl_bluetooth
+                "Headset", "Headphones" -> R.drawable.ic_ctl_headset
+                else -> R.drawable.ic_call
+            }
+        )
+        btnSpeaker.isActivated = t != "Earpiece"
+    }
+
+    private fun showRouteDialog(routes: List<org.linphone.core.AudioDevice>) {
+        val current = SipManager.currentRoute()?.type?.name
+        val labels = routes.map {
+            (if (it.type.name == current) "✓ " else "") + getString(routeLabel(it.type.name))
+        }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.audio_route_title)
+            .setItems(labels) { _, i ->
+                SipManager.setRoute(routes[i])
+                uiHandler.postDelayed({ updateRoute() }, 400)
+            }
+            .show()
+    }
+
+    private val ticker = object : Runnable {
+        override fun run() {
+            val main = SipManager.activeCall()
+            if (main != null && callGroup.visibility == View.VISIBLE) {
+                tvCallState.text = stateText(main)
+                uiHandler.postDelayed(this, 1000)
+            }
+        }
+    }
+
+    private fun startPulse() {
+        callRing.visibility = View.VISIBLE
+        if (pulse != null) return
+        pulse = ObjectAnimator.ofPropertyValuesHolder(
+            callRing,
+            PropertyValuesHolder.ofFloat("scaleX", 1f, 1.35f),
+            PropertyValuesHolder.ofFloat("scaleY", 1f, 1.35f),
+            PropertyValuesHolder.ofFloat("alpha", 0.7f, 0f)
+        ).apply {
+            duration = 1300
+            repeatCount = ObjectAnimator.INFINITE
+            start()
+        }
+    }
+
+    private fun stopPulse() {
+        pulse?.cancel()
+        pulse = null
+        if (::callRing.isInitialized) callRing.visibility = View.INVISIBLE
     }
 
     /** Draws the call screen from the current list of calls (handles call waiting too). */
     private fun render() {
         val live = SipManager.liveCalls()
         val main = SipManager.activeCall()
-        if (live.isEmpty() || main == null) { showDialer(); return }
+        if (live.isEmpty() || main == null) {
+            if (callGroup.visibility == View.VISIBLE && !endedSkip) {
+                if (!endedShown) showEnded()
+            } else if (!endedShown) {
+                showDialer()
+            }
+            return
+        }
+        if (endedShown) {
+            endedShown = false
+            uiHandler.removeCallbacks(endRunnable)
+        }
+        endedSkip = false
+        btnHangup.visibility = View.VISIBLE
+        tvCallState.setTextColor(ContextCompat.getColor(this, R.color.nav_active))
+        lastNum = main.remoteAddress.username ?: main.remoteAddress.asStringUriOnly()
+        lastName = Store.nameFor(lastNum) ?: lastNum
 
         dialerGroup.visibility = View.GONE
         callGroup.visibility = View.VISIBLE
@@ -376,58 +586,73 @@ class MainActivity : AppCompatActivity() {
         val st = main.state
         val mainIncoming = SipManager.isIncomingState(st)
         val waiting = SipManager.incomingCall()
+        val num = main.remoteAddress.username ?: main.remoteAddress.asStringUriOnly()
+        val name = Store.nameFor(num) ?: num
 
-        tvCallInfo.text = nameOf(main)
-        tvCallState.text = label(st)
+        tvCallAvatar.text = initialOf(name)
+        tvCallInfo.text = name
+        tvCallNumber.text = num
+        tvCallNumber.visibility = if (name == num) View.GONE else View.VISIBLE
+        tvCallState.text = stateText(main)
         btnAnswer.visibility = if (mainIncoming) View.VISIBLE else View.GONE
 
         if (waiting != null && !mainIncoming) {
             waitingGroup.visibility = View.VISIBLE
-            tvWaiting.text = "Waiting call: ${nameOf(waiting)}"
+            tvWaiting.text = getString(R.string.waiting_call, nameOf(waiting))
         } else {
             waitingGroup.visibility = View.GONE
         }
 
-        val inCall = st in setOf(
-            Call.State.Connected, Call.State.StreamsRunning, Call.State.Pausing, Call.State.Paused,
-            Call.State.PausedByRemote, Call.State.Resuming, Call.State.Updating, Call.State.UpdatedByRemote
-        )
+        val inCall = st in timedStates
         controls.visibility = if (inCall) View.VISIBLE else View.GONE
-        btnHold.text = if (st == Call.State.Paused || st == Call.State.Pausing) "Resume" else "Hold"
+
+        val held = st == Call.State.Paused || st == Call.State.Pausing
+        lblHold.text = getString(if (held) R.string.btn_resume else R.string.btn_hold)
+        btnHold.isActivated = held
+
         val talking = live.count { !SipManager.isIncomingState(it.state) }
-        btnSwap.visibility = if (talking >= 2) View.VISIBLE else View.GONE
-        btnAddCall.visibility = if (inCall && talking < 2) View.VISIBLE else View.GONE
-        btnRecord.text = if (SipManager.isRecording()) "Stop rec" else "Record"
+        cellSwap.visibility = if (talking >= 2) View.VISIBLE else View.GONE
+        cellAddCall.visibility = if (inCall && talking < 2) View.VISIBLE else View.GONE
+
+        val rec = SipManager.isRecording()
+        lblRecord.text = getString(if (rec) R.string.btn_stop_rec else R.string.btn_record)
+        btnRecord.isActivated = rec
+        updateRoute()
+
+        if (st in ringingStates) startPulse() else stopPulse()
+        uiHandler.removeCallbacks(ticker)
+        uiHandler.postDelayed(ticker, 1000)
     }
 
     private fun updateReg() {
-        tvReg.text = SipManager.lastRegistration + if (Prefs.dnd) " · DND on" else ""
+        tvReg.text = if (Prefs.dnd) "🔕 " + getString(R.string.dnd_on) else ""
+        tvReg.visibility = if (Prefs.dnd) View.VISIBLE else View.GONE
     }
 
     private fun showAddCallDialog() {
-        val et = EditText(this).apply { hint = "Number"; inputType = InputType.TYPE_CLASS_PHONE }
+        val et = EditText(this).apply { hint = getString(R.string.number_hint); inputType = InputType.TYPE_CLASS_PHONE }
         val box = FrameLayout(this).apply {
             setPadding(dp(20), dp(8), dp(20), 0)
             addView(et)
         }
         AlertDialog.Builder(this)
-            .setTitle("Add call")
-            .setMessage("The current call will be put on hold.")
+            .setTitle(getString(R.string.addcall_title))
+            .setMessage(getString(R.string.addcall_msg))
             .setView(box)
-            .setPositiveButton("Call") { _, _ -> SipManager.addCall(et.text.toString().trim()) }
-            .setNeutralButton("Contacts") { _, _ -> pickContactForCall() }
-            .setNegativeButton("Cancel", null)
+            .setPositiveButton(getString(R.string.call)) { _, _ -> SipManager.addCall(et.text.toString().trim()) }
+            .setNeutralButton(getString(R.string.nav_contacts)) { _, _ -> pickContactForCall() }
+            .setNegativeButton(getString(R.string.cancel), null)
             .show()
     }
 
     private fun pickContactForCall() {
         val cs = Store.contacts()
         if (cs.isEmpty()) {
-            Toast.makeText(this, "No contacts yet", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.no_contacts_toast, Toast.LENGTH_SHORT).show()
             return
         }
         AlertDialog.Builder(this)
-            .setTitle("Add call")
+            .setTitle(getString(R.string.addcall_title))
             .setItems(cs.map { "${it.name}  ${it.number}" }.toTypedArray()) { _, i ->
                 SipManager.addCall(cs[i].number)
             }

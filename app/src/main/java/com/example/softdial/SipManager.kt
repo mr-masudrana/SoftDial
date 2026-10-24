@@ -46,7 +46,7 @@ object SipManager {
 
     private fun updateSummary() {
         val accs = Store.accounts()
-        lastRegistration = if (accs.isEmpty()) "No account"
+        lastRegistration = if (accs.isEmpty()) appContext.getString(R.string.main_no_account)
         else accs.joinToString(" · ") { "${it.label}: ${regStates[key(it.user, it.server)] ?: "…"}" }
         regListeners.forEach { it(lastRegistration) }
     }
@@ -166,6 +166,11 @@ object SipManager {
         updateSummary()
     }
 
+    /** Registration state name of an account: "Ok", "Failed", "Progress", ... or null if unknown. */
+    fun regStateOf(a: Store.SipAccount): String? = regStates[key(a.user, a.server)]
+
+    fun isOnline(a: Store.SipAccount?): Boolean = a != null && regStateOf(a) == "Ok"
+
     private fun coreAccountFor(a: Store.SipAccount): Account? =
         core?.accountList?.firstOrNull {
             val id = it.params.identityAddress
@@ -176,6 +181,7 @@ object SipManager {
     fun applySelected() {
         val a = Store.selectedAccount() ?: return
         coreAccountFor(a)?.let { core?.defaultAccount = it }
+        updateSummary()
     }
 
     // ---- calls ----
@@ -187,6 +193,12 @@ object SipManager {
         val id = call.callLog?.callId ?: return false
         val num = call.remoteAddress.username ?: ""
         val busy = liveCalls().any { !isIncomingState(it.state) }
+
+        if (Store.isBlocked(num)) {
+            autoNotes[id] = "blocked"
+            call.decline(Reason.Declined)
+            return true
+        }
 
         when (Prefs.fwdMode) {
             "always" -> if (forward(call, id)) return true
@@ -258,7 +270,7 @@ object SipManager {
         if (number.isBlank()) return
         val acc = Store.selectedAccount()
         if (acc == null && !number.contains("@")) {
-            Toast.makeText(appContext, "Add a SIP account first (Settings)", Toast.LENGTH_LONG).show()
+            Toast.makeText(appContext, R.string.add_account_first, Toast.LENGTH_LONG).show()
             return
         }
         val uri = if (number.contains("@")) "sip:$number" else "sip:$number@${acc?.server}"
@@ -317,6 +329,24 @@ object SipManager {
         val c = core ?: return false
         c.isMicEnabled = !c.isMicEnabled
         return !c.isMicEnabled
+    }
+
+    private val routeTypes = setOf("Earpiece", "Speaker", "Bluetooth", "Headset", "Headphones")
+
+    /** Audio outputs that can be chosen during a call (earpiece, speaker, bluetooth, headset). */
+    fun audioRoutes(): List<AudioDevice> =
+        core?.audioDevices?.filter { it.type.name in routeTypes } ?: emptyList()
+
+    fun currentRoute(): AudioDevice? = activeCall()?.outputAudioDevice
+
+    fun setRoute(d: AudioDevice) {
+        val call = activeCall() ?: return
+        call.outputAudioDevice = d
+        if (d.type.name == "Bluetooth" || d.type.name == "Headset") {
+            try {   // microphone follows the headset (called by name, optional on some SDK versions)
+                call.javaClass.getMethod("setInputAudioDevice", AudioDevice::class.java).invoke(call, d)
+            } catch (e: Exception) { /* output only */ }
+        }
     }
 
     /** @return true if speaker is now on */

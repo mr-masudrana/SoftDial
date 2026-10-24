@@ -1,5 +1,6 @@
 package com.example.softdial
 
+import android.content.Context
 import android.util.Base64
 import org.json.JSONArray
 import org.json.JSONObject
@@ -43,7 +44,7 @@ object Backup {
         root.put("accounts", accs)
 
         val cons = JSONArray()
-        Store.contacts().forEach { cons.put(JSONObject().put("name", it.name).put("number", it.number)) }
+        Store.contacts().forEach { cons.put(JSONObject().put("name", it.name).put("number", it.number).put("fav", it.fav)) }
         root.put("contacts", cons)
 
         val plain = root.toString()
@@ -51,13 +52,13 @@ object Backup {
     }
 
     /** @return a short summary message. Throws IllegalArgumentException on bad file / passphrase. */
-    fun restore(text: String, passphrase: String): String {
+    fun restore(ctx: Context, text: String, passphrase: String): String {
         var root = try { JSONObject(text) } catch (e: Exception) {
-            throw IllegalArgumentException("Not a valid backup file")
+            throw IllegalArgumentException(ctx.getString(R.string.bk_invalid))
         }
-        if (root.has("enc")) root = JSONObject(decrypt(root, passphrase))
+        if (root.has("enc")) root = JSONObject(decrypt(ctx, root, passphrase))
         if (root.optInt("version", 0) != 1 || root.optString("app") != "softdial") {
-            throw IllegalArgumentException("Not a Soft Dial backup")
+            throw IllegalArgumentException(ctx.getString(R.string.bk_not_softdial))
         }
 
         root.optJSONObject("settings")?.let { s ->
@@ -91,12 +92,12 @@ object Backup {
         root.optJSONArray("contacts")?.let { a ->
             for (i in 0 until a.length()) {
                 val o = a.getJSONObject(i)
-                contacts.add(Store.Contact(o.getString("name"), o.getString("number")))
+                contacts.add(Store.Contact(o.getString("name"), o.getString("number"), o.optBoolean("fav", false)))
             }
         }
         val added = Store.addContacts(contacts)
 
-        return "Restored settings, $accCount account(s), $added new contact(s)"
+        return ctx.getString(R.string.bk_restored, accCount, added)
     }
 
     // ---- encryption: AES-256-GCM, key from passphrase via PBKDF2 ----
@@ -121,8 +122,8 @@ object Backup {
             .put("data", b64(data)).toString()
     }
 
-    private fun decrypt(o: JSONObject, pass: String): String {
-        if (pass.isEmpty()) throw IllegalArgumentException("Passphrase required")
+    private fun decrypt(ctx: Context, o: JSONObject, pass: String): String {
+        if (pass.isEmpty()) throw IllegalArgumentException(ctx.getString(R.string.bk_pass_required))
         try {
             val c = Cipher.getInstance("AES/GCM/NoPadding")
             c.init(
@@ -132,7 +133,7 @@ object Backup {
             )
             return String(c.doFinal(unb64(o.getString("data"))), Charsets.UTF_8)
         } catch (e: Exception) {
-            throw IllegalArgumentException("Wrong passphrase or damaged file")
+            throw IllegalArgumentException(ctx.getString(R.string.bk_wrong_pass))
         }
     }
 }

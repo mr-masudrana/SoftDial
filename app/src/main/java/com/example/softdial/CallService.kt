@@ -117,13 +117,13 @@ class CallService : Service() {
     private fun createChannels() {
         if (Build.VERSION.SDK_INT < 26) return
         nm.createNotificationChannel(
-            NotificationChannel(CH_SERVICE, "SIP status", NotificationManager.IMPORTANCE_LOW)
+            NotificationChannel(CH_SERVICE, getString(R.string.ch_status), NotificationManager.IMPORTANCE_LOW)
         )
         nm.createNotificationChannel(
-            NotificationChannel(CH_INCOMING, "Incoming calls", NotificationManager.IMPORTANCE_HIGH)
+            NotificationChannel(CH_INCOMING, getString(R.string.ch_incoming), NotificationManager.IMPORTANCE_HIGH)
         )
         nm.createNotificationChannel(
-            NotificationChannel(CH_MISSED, "Missed calls", NotificationManager.IMPORTANCE_DEFAULT)
+            NotificationChannel(CH_MISSED, getString(R.string.ch_missed), NotificationManager.IMPORTANCE_DEFAULT)
         )
     }
 
@@ -140,8 +140,8 @@ class CallService : Service() {
     private fun ongoing(status: String): Notification =
         NotificationCompat.Builder(this, CH_SERVICE)
             .setSmallIcon(android.R.drawable.sym_action_call)
-            .setContentTitle("Soft Dial")
-            .setContentText("SIP: $status")
+            .setContentTitle(getString(R.string.app_name))
+            .setContentText(getString(R.string.notif_sip, status))
             .setOngoing(true)
             .setContentIntent(openApp(10, false))
             .build()
@@ -159,7 +159,7 @@ class CallService : Service() {
         )
         val n = NotificationCompat.Builder(this, CH_INCOMING)
             .setSmallIcon(android.R.drawable.sym_call_incoming)
-            .setContentTitle("Incoming call")
+            .setContentTitle(getString(R.string.state_incoming))
             .setContentText(who(call))
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -167,8 +167,8 @@ class CallService : Service() {
             .setAutoCancel(false)
             .setContentIntent(openApp(11, false))
             .setFullScreenIntent(openApp(12, false), true)
-            .addAction(android.R.drawable.sym_action_call, "Answer", openApp(13, true))
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Decline", decline)
+            .addAction(android.R.drawable.sym_action_call, getString(R.string.btn_answer), openApp(13, true))
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.btn_decline), decline)
             .build()
         nm.notify(ID_INCOMING, n)
     }
@@ -176,7 +176,7 @@ class CallService : Service() {
     private fun showMissed(call: Call) {
         val n = NotificationCompat.Builder(this, CH_MISSED)
             .setSmallIcon(android.R.drawable.sym_call_missed)
-            .setContentTitle("Missed call")
+            .setContentTitle(getString(R.string.notif_missed))
             .setContentText(who(call))
             .setCategory(NotificationCompat.CATEGORY_MISSED_CALL)
             .setAutoCancel(true)

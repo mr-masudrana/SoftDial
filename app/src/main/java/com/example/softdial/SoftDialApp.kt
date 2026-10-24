@@ -9,5 +9,6 @@ class SoftDialApp : Application() {
         Store.init(this)
         Store.migrateLegacy()
         Prefs.applyTheme()
+        Prefs.applyLanguage()
     }
 }

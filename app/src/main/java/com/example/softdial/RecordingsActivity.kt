@@ -19,7 +19,7 @@ class RecordingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        title = "Recordings"
+        title = getString(R.string.rec_title)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         list = ListView(this)
         setContentView(list)
@@ -28,7 +28,7 @@ class RecordingsActivity : AppCompatActivity() {
             val f = files[pos]
             AlertDialog.Builder(this)
                 .setTitle(f.name)
-                .setItems(arrayOf("Play / Stop", "Share", "Delete")) { _, which ->
+                .setItems(arrayOf(getString(R.string.rec_play_stop), getString(R.string.rec_share), getString(R.string.delete))) { _, which ->
                     when (which) {
                         0 -> togglePlay(f)
                         1 -> share(f)
@@ -48,7 +48,7 @@ class RecordingsActivity : AppCompatActivity() {
             this, android.R.layout.simple_list_item_1,
             files.map { "${it.name}  (${it.length() / 1024} KB)" }
         )
-        if (files.isEmpty()) Toast.makeText(this, "No recordings yet", Toast.LENGTH_SHORT).show()
+        if (files.isEmpty()) Toast.makeText(this, R.string.rec_none, Toast.LENGTH_SHORT).show()
     }
 
     private fun togglePlay(f: File) {
@@ -62,7 +62,7 @@ class RecordingsActivity : AppCompatActivity() {
                 start()
             }
         } catch (e: Exception) {
-            Toast.makeText(this, "Cannot play: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.rec_cannot_play, e.message), Toast.LENGTH_LONG).show()
             stopPlayer()
         }
     }
@@ -74,7 +74,7 @@ class RecordingsActivity : AppCompatActivity() {
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        startActivity(Intent.createChooser(send, "Share recording"))
+        startActivity(Intent.createChooser(send, getString(R.string.rec_share_title)))
     }
 
     private fun stopPlayer() {

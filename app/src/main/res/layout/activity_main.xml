@@ -10,7 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:text="No account"
+        android:text="@string/main_no_account"
         android:textSize="13sp" />
 
     <!-- Dialpad -->
@@ -84,7 +84,7 @@
                 android:layout_width="68dp"
                 android:layout_height="68dp"
                 android:background="@drawable/bg_call"
-                android:contentDescription="Call"
+                android:contentDescription="@string/call"
                 android:scaleType="center"
                 android:src="@drawable/ic_call"
                 android:tint="#FFFFFF" />
@@ -100,7 +100,7 @@
                     android:layout_height="52dp"
                     android:layout_gravity="center"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Delete"
+                    android:contentDescription="@string/delete"
                     android:src="@drawable/ic_backspace"
                     android:tint="?android:attr/textColorSecondary" />
             </FrameLayout>
@@ -113,34 +113,122 @@
         android:id="@+id/callGroup"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="@drawable/bg_call_screen"
         android:fillViewport="true"
         android:visibility="gone">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:gravity="center_horizontal"
             android:orientation="vertical">
+
+            <!-- Call waiting banner -->
+            <LinearLayout
+                android:id="@+id/waitingGroup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_card"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tvWaiting"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:textColor="?android:attr/textColorPrimary"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btnAnswerWaiting"
+                        style="@style/Widget.AppCompat.Button.Borderless.Colored"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/btn_hold_answer"
+                        android:textAllCaps="false" />
+
+                    <Button
+                        android:id="@+id/btnDeclineWaiting"
+                        style="@style/Widget.AppCompat.Button.Borderless"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/btn_decline"
+                        android:textAllCaps="false"
+                        android:textColor="@color/perm_bad" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Avatar with pulsing ring -->
+            <FrameLayout
+                android:layout_width="150dp"
+                android:layout_height="150dp"
+                android:layout_marginTop="28dp">
+
+                <View
+                    android:id="@+id/callRing"
+                    android:layout_width="112dp"
+                    android:layout_height="112dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_ring"
+                    android:visibility="invisible" />
+
+                <TextView
+                    android:id="@+id/tvCallAvatar"
+                    android:layout_width="112dp"
+                    android:layout_height="112dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_avatar"
+                    android:gravity="center"
+                    android:textColor="@color/nav_active"
+                    android:textSize="46sp"
+                    android:textStyle="bold" />
+            </FrameLayout>
 
             <TextView
                 android:id="@+id/tvCallInfo"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="32dp"
-                android:textSize="28sp" />
+                android:layout_marginTop="8dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?android:attr/textColorPrimary"
+                android:textSize="28sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvCallNumber"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:textSize="15sp" />
 
             <TextView
                 android:id="@+id/tvCallState"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:textSize="16sp" />
+                android:textColor="@color/nav_active"
+                android:textSize="17sp"
+                android:textStyle="bold" />
 
+            <!-- Round control buttons -->
             <LinearLayout
                 android:id="@+id/controls"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="32dp"
+                android:layout_marginTop="24dp"
                 android:orientation="vertical"
                 android:visibility="gone">
 
@@ -148,62 +236,209 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal">
-
-                    <Button
-                        android:id="@+id/btnMute"
+                    <LinearLayout
+                        android:id="@+id/cellMute"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Mute" />
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical"
+                        android:paddingTop="8dp">
 
-                    <Button
-                        android:id="@+id/btnSpeaker"
+                        <ImageButton
+                            android:id="@+id/btnMute"
+                            android:layout_width="64dp"
+                            android:layout_height="64dp"
+                            android:background="@drawable/bg_ctrl"
+                            android:contentDescription="@string/btn_mute"
+                            android:scaleType="center"
+                            android:src="@drawable/ic_ctl_mute"
+                            android:tint="@color/ctrl_icon" />
+
+                        <TextView
+                            android:id="@+id/lblMute"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="@string/btn_mute"
+                            android:textColor="?android:attr/textColorSecondary"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                    <LinearLayout
+                        android:id="@+id/cellKeypad"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Speaker" />
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical"
+                        android:paddingTop="8dp">
 
-                    <Button
-                        android:id="@+id/btnRecord"
+                        <ImageButton
+                            android:id="@+id/btnKeypad"
+                            android:layout_width="64dp"
+                            android:layout_height="64dp"
+                            android:background="@drawable/bg_ctrl"
+                            android:contentDescription="@string/btn_keypad"
+                            android:scaleType="center"
+                            android:src="@drawable/ic_nav_dialer"
+                            android:tint="@color/ctrl_icon" />
+
+                        <TextView
+                            android:id="@+id/lblKeypad"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="@string/btn_keypad"
+                            android:textColor="?android:attr/textColorSecondary"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                    <LinearLayout
+                        android:id="@+id/cellSpeaker"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Record" />
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical"
+                        android:paddingTop="8dp">
+
+                        <ImageButton
+                            android:id="@+id/btnSpeaker"
+                            android:layout_width="64dp"
+                            android:layout_height="64dp"
+                            android:background="@drawable/bg_ctrl"
+                            android:contentDescription="@string/btn_speaker"
+                            android:scaleType="center"
+                            android:src="@drawable/ic_ctl_speaker"
+                            android:tint="@color/ctrl_icon" />
+
+                        <TextView
+                            android:id="@+id/lblSpeaker"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="@string/btn_speaker"
+                            android:textColor="?android:attr/textColorSecondary"
+                            android:textSize="12sp" />
+                    </LinearLayout>
                 </LinearLayout>
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal">
-
-                    <Button
-                        android:id="@+id/btnKeypad"
+                    <LinearLayout
+                        android:id="@+id/cellRecord"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Keypad" />
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical"
+                        android:paddingTop="8dp">
 
-                    <Button
-                        android:id="@+id/btnHold"
+                        <ImageButton
+                            android:id="@+id/btnRecord"
+                            android:layout_width="64dp"
+                            android:layout_height="64dp"
+                            android:background="@drawable/bg_ctrl"
+                            android:contentDescription="@string/btn_record"
+                            android:scaleType="center"
+                            android:src="@drawable/ic_set_record"
+                            android:tint="@color/ctrl_icon" />
+
+                        <TextView
+                            android:id="@+id/lblRecord"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="@string/btn_record"
+                            android:textColor="?android:attr/textColorSecondary"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                    <LinearLayout
+                        android:id="@+id/cellHold"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Hold" />
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical"
+                        android:paddingTop="8dp">
 
-                    <Button
-                        android:id="@+id/btnSwap"
+                        <ImageButton
+                            android:id="@+id/btnHold"
+                            android:layout_width="64dp"
+                            android:layout_height="64dp"
+                            android:background="@drawable/bg_ctrl"
+                            android:contentDescription="@string/btn_hold"
+                            android:scaleType="center"
+                            android:src="@drawable/ic_ctl_hold"
+                            android:tint="@color/ctrl_icon" />
+
+                        <TextView
+                            android:id="@+id/lblHold"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="@string/btn_hold"
+                            android:textColor="?android:attr/textColorSecondary"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                    <LinearLayout
+                        android:id="@+id/cellAddCall"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Swap"
-                        android:visibility="gone" />
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical"
+                        android:paddingTop="8dp">
 
-                    <Button
-                        android:id="@+id/btnAddCall"
+                        <ImageButton
+                            android:id="@+id/btnAddCall"
+                            android:layout_width="64dp"
+                            android:layout_height="64dp"
+                            android:background="@drawable/bg_ctrl"
+                            android:contentDescription="@string/btn_add_call"
+                            android:scaleType="center"
+                            android:src="@drawable/ic_ctl_add"
+                            android:tint="@color/ctrl_icon" />
+
+                        <TextView
+                            android:id="@+id/lblAddCall"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="@string/btn_add_call"
+                            android:textColor="?android:attr/textColorSecondary"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                    <LinearLayout
+                        android:id="@+id/cellSwap"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Add call" />
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical"
+                        android:paddingTop="8dp"
+                    android:visibility="gone">
+
+                        <ImageButton
+                            android:id="@+id/btnSwap"
+                            android:layout_width="64dp"
+                            android:layout_height="64dp"
+                            android:background="@drawable/bg_ctrl"
+                            android:contentDescription="@string/btn_swap"
+                            android:scaleType="center"
+                            android:src="@drawable/ic_ctl_swap"
+                            android:tint="@color/ctrl_icon" />
+
+                        <TextView
+                            android:id="@+id/lblSwap"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="@string/btn_swap"
+                            android:textColor="?android:attr/textColorSecondary"
+                            android:textSize="12sp" />
+                    </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
 
@@ -215,6 +450,7 @@
                 android:ellipsize="start"
                 android:gravity="center"
                 android:maxLines="1"
+                android:textColor="?android:attr/textColorPrimary"
                 android:textSize="22sp"
                 android:visibility="gone" />
 
@@ -225,69 +461,41 @@
                 android:columnCount="3"
                 android:visibility="gone" />
 
-            <!-- Call waiting -->
-            <LinearLayout
-                android:id="@+id/waitingGroup"
+            <View
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:orientation="vertical"
-                android:visibility="gone">
+                android:layout_height="0dp"
+                android:layout_weight="1" />
 
-                <TextView
-                    android:id="@+id/tvWaiting"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:textSize="16sp" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <Button
-                        android:id="@+id/btnAnswerWaiting"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:backgroundTint="#2E7D32"
-                        android:text="Hold &amp; answer"
-                        android:textColor="#FFFFFF" />
-
-                    <Button
-                        android:id="@+id/btnDeclineWaiting"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Decline" />
-                </LinearLayout>
-            </LinearLayout>
-
+            <!-- End / Answer -->
             <LinearLayout
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="24dp"
+                android:gravity="center"
                 android:orientation="horizontal">
 
-                <Button
-                    android:id="@+id/btnAnswer"
-                    android:layout_width="0dp"
-                    android:layout_height="72dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="#2E7D32"
-                    android:text="Answer"
-                    android:textColor="#FFFFFF"
-                    android:visibility="gone" />
-
-                <Button
+                <ImageButton
                     android:id="@+id/btnHangup"
-                    android:layout_width="0dp"
+                    android:layout_width="72dp"
                     android:layout_height="72dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="#C62828"
-                    android:text="Hang up"
-                    android:textColor="#FFFFFF" />
+                    android:background="@drawable/bg_end"
+                    android:contentDescription="@string/btn_hangup"
+                    android:scaleType="center"
+                    android:src="@drawable/ic_call_end"
+                    android:tint="#FFFFFF" />
+
+                <ImageButton
+                    android:id="@+id/btnAnswer"
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:layout_marginStart="72dp"
+                    android:background="@drawable/bg_call"
+                    android:contentDescription="@string/btn_answer"
+                    android:scaleType="center"
+                    android:src="@drawable/ic_call"
+                    android:tint="#FFFFFF"
+                    android:visibility="gone" />
             </LinearLayout>
         </LinearLayout>
     </ScrollView>

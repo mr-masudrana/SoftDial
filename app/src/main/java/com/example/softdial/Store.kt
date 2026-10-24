@@ -7,7 +7,7 @@ import org.json.JSONObject
 
 /** Tiny local storage for contacts and call history (JSON in SharedPreferences). */
 object Store {
-    data class Contact(val name: String, val number: String)
+    data class Contact(val name: String, val number: String, val fav: Boolean = false)
     data class Entry(
         val number: String,
         val incoming: Boolean,
@@ -96,13 +96,13 @@ object Store {
         val a = JSONArray(sp.getString("contacts", "[]"))
         return (0 until a.length()).map {
             val o = a.getJSONObject(it)
-            Contact(o.getString("name"), o.getString("number"))
+            Contact(o.getString("name"), o.getString("number"), o.optBoolean("fav", false))
         }.sortedBy { it.name.lowercase() }
     }
 
     private fun putContacts(list: List<Contact>) {
         val a = JSONArray()
-        list.forEach { a.put(JSONObject().put("name", it.name).put("number", it.number)) }
+        list.forEach { a.put(JSONObject().put("name", it.name).put("number", it.number).put("fav", it.fav)) }
         sp.edit().putString("contacts", a.toString()).apply()
     }
 
@@ -119,18 +119,53 @@ object Store {
         return fresh.size
     }
 
+    fun setFavorite(number: String, fav: Boolean) {
+        putContacts(contacts().map { if (same(it.number, number)) it.copy(fav = fav) else it })
+    }
+
     fun deleteContact(number: String) {
         putContacts(contacts().filter { norm(it.number) != norm(number) })
     }
 
-    fun nameFor(number: String): String? {
-        val n = norm(number)
-        if (n.isEmpty()) return null
-        return contacts().firstOrNull {
-            val m = norm(it.number)
-            m == n || (m.length >= 7 && n.length >= 7 && (m.endsWith(n) || n.endsWith(m)))
-        }?.name
+    fun same(a: String, b: String): Boolean {
+        val x = norm(a)
+        val y = norm(b)
+        if (x.isEmpty() || y.isEmpty()) return false
+        return x == y || (x.length >= 7 && y.length >= 7 && (x.endsWith(y) || y.endsWith(x)))
     }
+
+    fun contactFor(number: String): Contact? = contacts().firstOrNull { same(it.number, number) }
+
+    fun nameFor(number: String): String? = contactFor(number)?.name
+
+    // ---- blocked numbers ----
+
+    fun blocked(): List<String> {
+        val a = JSONArray(sp.getString("blocked", "[]"))
+        return (0 until a.length()).map { a.getString(it) }
+    }
+
+    private fun putBlocked(list: List<String>) {
+        val a = JSONArray()
+        list.forEach { a.put(it) }
+        sp.edit().putString("blocked", a.toString()).apply()
+    }
+
+    fun isBlocked(number: String): Boolean {
+        val n = norm(number)
+        if (n.isEmpty()) return false
+        return blocked().any {
+            val m = norm(it)
+            m == n || (m.length >= 7 && n.length >= 7 && (m.endsWith(n) || n.endsWith(m)))
+        }
+    }
+
+    fun blockNumber(number: String) {
+        val n = norm(number)
+        if (n.isNotEmpty() && !isBlocked(n)) putBlocked(blocked() + n)
+    }
+
+    fun unblock(number: String) { putBlocked(blocked().filter { it != number }) }
 
     // ---- history ----
 

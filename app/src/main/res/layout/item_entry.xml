@@ -40,7 +40,7 @@
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:background="?android:attr/selectableItemBackgroundBorderless"
-        android:contentDescription="Call"
+        android:contentDescription="@string/call"
         android:focusable="false"
         android:focusableInTouchMode="false"
         android:src="@drawable/ic_call"

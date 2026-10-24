@@ -3,6 +3,7 @@ package com.example.softdial
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 
 object Prefs {
     private lateinit var sp: SharedPreferences
@@ -44,6 +45,21 @@ object Prefs {
     var fcmToken: String
         get() = sp.getString("fcmToken", "") ?: ""
         set(v) = sp.edit().putString("fcmToken", v).apply()
+
+    /** "system", "en" or "bn" */
+    var language: String
+        get() = sp.getString("language", "system") ?: "system"
+        set(v) = sp.edit().putString("language", v).apply()
+
+    fun applyLanguage() {
+        AppCompatDelegate.setApplicationLocales(
+            when (language) {
+                "en" -> LocaleListCompat.forLanguageTags("en")
+                "bn" -> LocaleListCompat.forLanguageTags("bn")
+                else -> LocaleListCompat.getEmptyLocaleList()
+            }
+        )
+    }
 
     fun applyTheme() {
         AppCompatDelegate.setDefaultNightMode(
