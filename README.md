@@ -1,118 +1,160 @@
-# Soft Dial (starter v20)
+<div align="center">
 
-SIP dialer using Linphone SDK.
+# Soft Dial
 
-Features: dialpad, in-call screen (mute / speaker / record), background incoming
-calls (foreground service), call recording + Recordings screen, call history
-(Recents) with missed-call notifications, local contacts, light/dark/system
-theme, optional FCM push, phonebook import, in-call keypad (DTMF),
-recording sharing.
+**A modern, lightweight SIP softphone for Android — built with Kotlin and the Linphone SDK.**
 
-## Build
-Push to GitHub (`main`) -> Actions -> "Build APK" -> download `softdial-debug`.
+[![Platform](https://img.shields.io/badge/platform-Android%208.0%2B-3DDC84?logo=android&logoColor=white)](#requirements)
+[![Kotlin](https://img.shields.io/badge/Kotlin-1.9-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![SIP](https://img.shields.io/badge/SIP-Linphone%20SDK-0A84FF)](https://gitlab.linphone.org/BC/public/linphone-sdk)
+[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
-## FCM push (optional)
-1. Create a Firebase project, add an Android app with package `com.example.softdial`.
+[Download](../../releases/latest) · [Features](#features) · [Build](#building-from-source) · [Release](#releasing) · [License](#license)
+
+</div>
+
+---
+
+## Overview
+
+Soft Dial turns your phone into a full-featured SIP client. Sign in with any SIP account, make and receive calls over Wi-Fi or mobile data, record conversations, manage contacts and call history, and keep everything backed up — all in a clean, fast interface with light and dark themes and full **English / বাংলা** support.
+
+## Features
+
+### Calling
+- Dial pad with round keys, DTMF tones and haptic feedback
+- Modern in-call screen: mute, keypad (DTMF), audio output, record, hold, add call / swap
+- Call waiting, hold & answer, and swap between two calls
+- Audio route chooser: earpiece, speaker, Bluetooth, wired headset
+- Incoming calls in the background through a foreground service
+- Optional FCM push for incoming calls (requires a push-capable SIP server)
+
+### Accounts
+- First-run SIP login (server, username, password, transport)
+- Multiple SIP accounts with a selectable default for outgoing calls
+- Live registration status: Connecting / Connected / Failed
+
+### Contacts & history
+- Local contacts with favorites, search and one-time phone import
+- Recents grouped by Today / Yesterday / date, with missed-call badge and notifications
+- Smart dialer suggestions (matches numbers and contact names while typing)
+- Long-press actions: copy, add / edit contact, block, delete, details
+
+### Control & privacy
+- Call recording (manual or automatic) with a built-in Recordings screen and sharing
+- Do Not Disturb (with optional contacts exception) and call forwarding (always / busy / no answer)
+- Number blocking
+- Encrypted backup & restore of settings, accounts and contacts (passphrase protected)
+- In-app logs with number masking, copy and share
+
+### Experience
+- Light, dark and system themes
+- English and Bangla (বাংলা) interface
+- Custom ringtone, vibration and key-sound settings
+- Splash screen and Material-style bottom navigation
+
+## Requirements
+
+| Item | Version |
+|------|---------|
+| Android | 8.0 (API 26) or newer |
+| Target / compile SDK | 34 |
+| JDK (build) | 17 |
+| Gradle | 8.7 |
+| Android Gradle Plugin | 8.5.2 |
+| Kotlin | 1.9.24 |
+
+## Getting started
+
+1. Download the latest APK from the [Releases](../../releases/latest) page and install it.
+2. Open the app and sign in with your SIP server, username and password (or skip and add an account later in **Settings → Account**).
+3. Allow the requested permissions (microphone, notifications, contacts, Bluetooth) for the best experience.
+4. For reliable incoming calls, allow background running when asked and open the app once after a reboot.
+
+## Building from source
+
+```bash
+git clone https://github.com/<your-username>/SoftDial.git
+cd SoftDial
+gradle assembleDebug
+```
+
+The debug APK is created at `app/build/outputs/apk/debug/`.
+
+### Build with GitHub Actions
+
+Every push to `main` runs the **Build APK** workflow. Download the `softdial-debug` artifact from the workflow run.
+
+### Optional: FCM push
+
+1. Create a Firebase project and add an Android app with package `com.example.softdial`.
 2. Download `google-services.json`.
-3. GitHub repo -> Settings -> Secrets -> Actions -> new secret `GOOGLE_SERVICES_JSON`
-   with the full file contents. Re-run the build.
-4. IMPORTANT: push only works if your SIP server/proxy can send FCM pushes
-   (e.g. Flexisip push gateway, or a provider that supports push). Ordinary
-   SIP providers will not. Without that, the app works as before.
+3. Add the full file contents as the repository secret `GOOGLE_SERVICES_JSON`, then re-run the build.
 
-## Notes
-- Open the app once after reboot to restart the background service.
-- Recordings: Android/data/com.example.softdial/files/recordings
-- Recording calls may need the other person's consent under local law.
+> Push works only if your SIP server or proxy can send FCM pushes (for example a Flexisip push gateway). Ordinary SIP providers usually cannot. Without it the app works normally.
 
-## v5 additions
-- Call hold/resume, call waiting (Hold & answer / Decline), swap between two calls.
-- Multiple SIP accounts: Settings -> Manage SIP accounts. Pick the account for
-  outgoing calls from the dialer ("Call with") or the accounts screen.
-- App icon: res/drawable/ic_launcher_foreground.xml (shape) and
-  res/values/colors.xml (background color).
-- App name: res/values/strings.xml (`app_name`); Bangla name in res/values-bn/strings.xml.
+## Releasing
 
-## v6 additions
-- Add call: puts the running call on hold and dials a second number.
-- Do Not Disturb (menu or Settings; optional exception for contacts) and call
-  forwarding (always / busy / no answer). Done inside the app, so only while it runs.
-- Backup & restore (Settings): settings + SIP accounts + contacts to a JSON file,
-  optionally encrypted with a passphrase. Restore merges contacts.
+Signed release APKs are built and published by the **Release APK** workflow.
 
-## v7
-- Bottom navigation (Dialer / Recents / Contacts / Settings) with custom vector icons
-  in res/drawable/ic_nav_*.xml. Colors: nav_active / nav_inactive in res/values/colors.xml
-  (and values-night). The bar is hidden during calls.
+**1. Add these repository secrets** (*Settings → Secrets and variables → Actions*):
 
-## v8
-- Selected bottom tab uses a filled icon (ic_nav_*_filled.xml).
-- Red badge on Recents shows unseen missed calls (cleared when Recents is opened).
-- Contacts: search box (name or number).
+| Secret | Value |
+|--------|-------|
+| `ANDROID_KEYSTORE_BASE64` | Full contents of your keystore converted to Base64 |
+| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
+| `ANDROID_KEY_ALIAS` | Key alias |
+| `ANDROID_KEY_PASSWORD` | Key password |
 
-## v9
-- Dialer: keypad at the bottom; middle area shows recent calls, and matching
-  contacts/numbers (also by name letters, e.g. 566 -> Jon) while typing. Tap to fill the number.
-- Top bar, status bar and navigation bar use the same color as the bottom nav
-  (`bar_bg` in res/values/colors.xml and values-night).
+Create the Base64 text with `base64 -w 0 release.keystore`.
 
-## v10
-- No three-dot menus. Recordings and Import contacts are in Settings.
-- Recents: "Clear all" in the bar, with a confirmation dialog.
-- Contacts permission is requested at app start (like notifications); contacts are
-  copied once automatically. Settings -> "Import contacts from phone" repeats it.
+**2. Update the version** in `app/build.gradle` (`versionCode`, `versionName`).
 
-## v11
-- Round keypad keys with letters (ABC...). Round green call button, custom backspace icon.
-- Call button on the right of every row in Recents, Contacts and dialer suggestions.
-  (Tapping the row itself still opens options / fills the number.)
+**3. Publish**
 
-## v12
-- Full Bangla translation of all screens (Settings -> Language). Strings live in
-  res/values/strings.xml (English) and res/values-bn/strings.xml (Bangla).
-- Contacts and Recents are cards with an avatar, a call button and ripple.
-- Tap a row = Details. Long press = Copy number / Add or Edit contact / Block (Recents) / Delete / Details.
+```bash
+git tag v20.0
+git push origin v20.0
+```
 
-## v13
-- Contacts: star = favorite (tap the star or long press). Favorites are listed first under "Favorites".
-- Recents: grouped by Today / Yesterday / date.
-- Top bar (right side): default SIP account name (or user id) and Online / Offline on two lines.
-- Accounts screen and Settings -> Account show registration: Connected / Failed / Connecting.
+You can also run **Actions → Release APK → Run workflow** and enter a tag. The APK is attached to a new GitHub Release automatically.
 
-## v14
-- Modern call screen: big avatar with pulsing ring while ringing, name + number, live call timer,
-  round control buttons (Mute, Keypad, Speaker, Record, Hold, Add call / Swap) that light up when on,
-  round red End button, green Answer button for incoming calls, call-waiting banner on top.
+> Never commit your keystore or passwords to the repository.
 
-## v15
-- After a call ends the call screen stays for ~2 seconds with "Call ended - 02:34"
-  (or "Call failed"), then returns to the dialer. Unanswered incoming calls skip it.
-- The Speaker button became an audio-output button: it shows the current output and,
-  when Bluetooth or a headset is connected, opens a chooser (earpiece / speaker / bluetooth / headset).
-  Bluetooth needs the Bluetooth permission on Android 12+ (asked at start, also in Settings -> Permissions).
+## Project structure
 
-## v16
-- Call screen hides the top bar (it comes back in the dialer).
-- In-call Keypad opens in its own compact mode (round controls and avatar make room), with "Hide keypad".
-- Dialer: no name under the typed number; matching numbers are cards.
+```
+app/src/main/java/com/example/softdial/
+├── MainActivity.kt          # Dialer and in-call screen
+├── SipManager.kt            # Linphone core, registration, calls
+├── CallService.kt           # Foreground service for background calls
+├── Push.kt, SoftFcmService.kt  # Optional FCM push
+├── ContactsActivity.kt, HistoryActivity.kt, RecordingsActivity.kt
+├── SettingsActivity.kt, SettingsDetailActivity.kt
+├── AccountsActivity.kt, LoginActivity.kt, BlockedActivity.kt
+├── Backup.kt, Prefs.kt, Store.kt, AppLog.kt
+└── ...
+```
 
-## v17
-- Top bar account name + Online/Offline only on the home (dialer) page.
-- Long press on dialer suggestion cards (contacts / recent numbers): Copy, Add/Edit contact, Delete, Details.
-  (Recents and Contacts pages already had this.)
+## Privacy & legal notes
 
-## v18
-- Call times use AM/PM (e.g. 3:05 PM).
-- Settings is now a grid of tiles (Account, Theme, Language, Call recording, Call forwarding,
-  Number block, Permissions, Backup & restore, About), each with a live status line.
-  Tap a tile to open that section (SettingsDetailActivity, layouts res/layout/settings_*.xml).
+- Your SIP credentials and data stay on your device; Soft Dial does not run any servers of its own.
+- Backups contain SIP account passwords — protect them with a passphrase.
+- Recording a call may require the other party's consent under your local law. You are responsible for complying with it.
 
-## v19
-- Settings tiles: Ringtone (pick any ringtone / silent, vibration, test), App logs (view, copy, share, clear;
-  numbers partly hidden), Help (FAQ in English / Bangla).
-- Splash screen (core-splashscreen): app icon on the app color. Colors: ic_launcher_background.
+## Contributing
 
-## v20
-- First run: SIP login page (server, username, password, advanced: label + transport). Shows
-  Connecting / Connected / the server's error. "Skip for now" hides it (Settings -> Account to add later).
-- Dial pad keys play a DTMF tone and a short vibration (switches in Settings -> Ringtone & sound).
+Issues and pull requests are welcome. For larger changes, please open an issue first to discuss what you would like to change.
+
+## Acknowledgements
+
+- [Linphone SDK](https://gitlab.linphone.org/BC/public/linphone-sdk) by Belledonne Communications — SIP, audio and media engine
+- [Firebase Cloud Messaging](https://firebase.google.com/docs/cloud-messaging) — optional push notifications
+
+## License
+
+Copyright © 2026 Md. Masud Rana
+
+Soft Dial is free software released under the **GNU General Public License v3.0**. See the [LICENSE](LICENSE) file for the full text.
+
+The app is built on the Linphone SDK, which is itself licensed under the GPL, so the combined work is distributed under the GPL as well.

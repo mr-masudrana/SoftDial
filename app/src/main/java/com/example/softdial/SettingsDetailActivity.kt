@@ -170,7 +170,7 @@ class SettingsDetailActivity : AppCompatActivity() {
             isChecked = Prefs.pushEnabled
             setOnCheckedChangeListener { _, checked ->
                 Prefs.pushEnabled = checked
-                SipManager.init(this@SettingsActivity)
+                SipManager.init(this@SettingsDetailActivity)
                 SipManager.register()
             }
         }
